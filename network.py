@@ -38,14 +38,19 @@ class AsyncDQNetwork:
       if not os.path.exists(config.CHECKPOINT_PATH):
         os.mkdir(config.CHECKPOINT_PATH)
 
+      checkpoint = tf.train.get_checkpoint_state(config.CHECKPOINT_PATH)
+      if checkpoint and checkpoint.model_checkpoint_path:
+        self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
+        print "Successfully loaded:", checkpoint.model_checkpoint_path
+      else:
+        print "Could not find old network weights"
 
+      self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summaries()
 
-      # checkpoint = tf.train.get_checkpoint_state(config.CHECKPOINT_PATH)
-      # if checkpoint and checkpoint.model_checkpoint_path:
-      #   self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
-      #   print "Successfully loaded:", checkpoint.model_checkpoint_path
-      # else:
-      #   print "Could not find old network weights"
+      if not os.path.exists(config.SUMMARY_PATH):
+        os.mkdir(config.SUMMARY_PATH)
+
+      self.writer = tf.train.SummaryWriter(config.SUMMARY_PATH, self.sess.graph)
 
 
   def create_network(self, action_size):
@@ -165,6 +170,7 @@ class AsyncDQNetwork:
     Q_s_a = self.sess.run(self.target_q_values, feed_dict={self.state_input: state_batch})
     return Q_s_a
 
+
   def reset_target_network(self):
     self.sess.run(self.reset_target_network_params)
 
@@ -176,5 +182,29 @@ class AsyncDQNetwork:
       self.action_input: one_hot_actions,
       self.y_input: y_batch})
 
+
   def save_network(self, time_step):
     self.saver.save(self.sess, config.CHECKPOINT_PATH, global_step=time_step)
+
+
+  def setup_summaries(self):
+    episode_reward = tf.Variable(0.)
+    tf.scalar_summary("Episode Reward", episode_reward)
+    episode_ave_max_q = tf.Variable(0.)
+    tf.scalar_summary("Max Q Value", episode_ave_max_q)
+    logged_epsilon = tf.Variable(0.)
+    tf.scalar_summary("Epsilon", logged_epsilon)
+    summary_vars = [episode_reward, episode_ave_max_q, logged_epsilon]
+    summary_placeholders = [tf.placeholder("float") for i in range(len(summary_vars))]
+    update_ops = [summary_vars[i].assign(summary_placeholders[i]) for i in range(len(summary_vars))]
+    summary_op = tf.merge_all_summaries()
+    return summary_placeholders, update_ops, summary_op
+
+
+  def update_summaries(self, stats):
+    for i in range(len(stats)):
+      self.sess.run(self.update_ops[i], feed_dict={self.summary_placeholders[i]: float(stats[i])})
+
+
+  def run_summary_op(self):
+    return self.sess.run(self.summary_op)

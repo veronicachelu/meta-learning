@@ -19,7 +19,7 @@ class AgentAsyncDQN(threading.Thread):
 
     self.probability_of_random_action = config.INITIAL_RANDOM_ACTION_PROB
 
-    self.final_probability_of_random_action = sample_final_epsilon()
+    self.final_probability_of_random_action = self.sample_final_epsilon()
 
     self.time_step = 0
 
@@ -63,7 +63,7 @@ class AgentAsyncDQN(threading.Thread):
         next_state = np.append(self.state[:, :, 1:], obs_resized_binary, axis=2)
 
         # gradually reduce the probability of a random actionself.
-        if self.probability_of_random_action > config.FINAL_RANDOM_ACTION_PROB:
+        if self.probability_of_random_action > self.final_probability_of_random_action:
           self.probability_of_random_action -= (config.INITIAL_RANDOM_ACTION_PROB - self.final_probability_of_random_action)\
                                                / config.EXPLORE_STEPS
 
@@ -108,12 +108,13 @@ class AgentAsyncDQN(threading.Thread):
           self.network.save_network(self.time_step)
 
         if done:
-          print 'EPISODE: ', T, ' time thread: ', self.time_step, ' result: ', score
+          stats = [ep_reward, episode_ave_max_q / float(ep_t), self.probability_of_random_action]
+          self.network.update_summaries(stats)
+
+          print "THREAD:", self.thread_id, "/ TIME", T, "/ TIMESTEP", self.time_step, "/ EPSILON", \
+            self.probability_of_random_action, "/ REWARD", ep_reward, \
+            "/ Q_MAX %.4f" % (episode_ave_max_q / float(ep_t)), "/ EPSILON PROGRESS", self.time_step / float(config.EPISODES)
           break
-
-
-
-
 
 
   def set_initial_state(self, obs):
@@ -136,62 +137,13 @@ class AgentAsyncDQN(threading.Thread):
     return action
 
 
-  def set_feedback(self, obs, action, reward, done):
-    obs_resized_grayscaled = cv2.cvtColor(cv2.resize(obs, (config.RESIZED_SCREEN_X, config.RESIZED_SCREEN_Y)),
-                                                  cv2.COLOR_BGR2GRAY)
-    # set the pixels to all be 0. or 1.
-    _, obs_resized_binary = cv2.threshold(obs_resized_grayscaled, 1, 255, cv2.THRESH_BINARY)
-
-    obs_resized_binary = np.reshape(obs_resized_binary, (config.RESIZED_SCREEN_X, config.RESIZED_SCREEN_Y, 1))
-
-    next_state = np.append(self.state[:, :, 1:], obs_resized_binary, axis=2)
-
-    self.replay_memory.append((self.state, action, reward, next_state, done))
-
-    self.state = next_state
-    self.time_step += 1
-
-    if len(self.replay_memory) > config.MEMORY_SIZE:
-      self.replay_memory.popleft()
-
-    # Store transitions to replay start size then start training
-    if self.time_step > config.OBSERVATION_STEPS:
-      self.train()
-
-    if self.time_step % config.SAVE_EVERY_X_STEPS == 0:
-      self.network.save_network(self.time_step)
-
-    # gradually reduce the probability of a random actionself.
-    if self.probability_of_random_action > config.FINAL_RANDOM_ACTION_PROB and len(self.replay_memory) > config.OBSERVATION_STEPS:
-      self.probability_of_random_action -= (config.INITIAL_RANDOM_ACTION_PROB - config.FINAL_RANDOM_ACTION_PROB) / config.EXPLORE_STEPS
-
-
-  def train(self):
-    # sample a mini_batch to train on
-    minibatch = random.sample(self.replay_memory, config.MINI_BATCH_SIZE)
-    # get the batch variables
-    state_batch = [data[0] for data in minibatch]
-    action_batch = [data[1] for data in minibatch]
-    one_hot_actions = np.eye(self.env.action_space.n)[action_batch]
-    reward_batch = [data[2] for data in minibatch]
-    next_state_batch = [data[3] for data in minibatch]
-
-    y_batch = []
-    # this gives us the agents expected reward for each action we might
-    q_value_batch = self.network.get_target_q_batch(next_state_batch)
-
-    for i in range(0, config.MINI_BATCH_SIZE):
-      done = minibatch[i][4]
-      if done:
-        y_batch.append(reward_batch[i])
-      else:
-        y_batch.append(reward_batch[i] + config.FUTURE_REWARD_DISCOUNT * np.max(q_value_batch[i]))
-    # y_batch = np.array(y_batch)
-    # y_batch = np.reshape(y_batch, [len(y_batch), 1])
-
-    # learn that these actions in these states lead to this reward
-    self.network.train(y_batch, state_batch, one_hot_actions)
-
-    # self.network.save_network(time_step=self.time_step)
+  def sample_final_epsilon(self):
+    """
+    Sample a final epsilon value to anneal towards from a distribution.
+    These values are specified in section 5.1 of http://arxiv.org/pdf/1602.01783v1.pdf
+    """
+    final_epsilons = np.array([.1, .01, .5])
+    probabilities = np.array([0.4, 0.3, 0.3])
+    return np.random.choice(final_epsilons, 1, p=list(probabilities))[0]
 
 
