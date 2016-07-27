@@ -89,6 +89,23 @@ class AgentAsyncDQN(threading.Thread):
         ep_reward += reward
         episode_ave_max_q += np.max(q_values)
 
+        # Update target network
+        if T % config.TARGET_NETWORK_UPDATE_FREQUENCY == 0:
+          self.network.reset_target_network()
+
+        # Update online network
+        if self.time_step % config.NETWORK_UPDATE_FREQUENCY == 0 or done:
+          if self.s_batch:
+            one_hot_actions = np.eye(self.env.action_space.n)[self.a_batch]
+            self.network.grad_update(self.y_batch, self.s_batch, one_hot_actions)
+          # Clear gradients
+          self.s_batch = []
+          self.a_batch = []
+          self.y_batch = []
+
+        # Save model progress
+        if self.time_step % config.SAVE_EVERY_X_STEPS == 0:
+          self.network.save_network(self.time_step)
 
         if done:
           print 'EPISODE: ', T, ' time thread: ', self.time_step, ' result: ', score

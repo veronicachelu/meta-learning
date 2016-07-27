@@ -164,3 +164,17 @@ class AsyncDQNetwork:
   def get_target_q_batch(self, state_batch):
     Q_s_a = self.sess.run(self.target_q_values, feed_dict={self.state_input: state_batch})
     return Q_s_a
+
+  def reset_target_network(self):
+    self.sess.run(self.reset_target_network_params)
+
+
+  def grad_update(self, y_batch, state_batch, one_hot_actions):
+    # learn that these actions in these states lead to this reward
+    self.sess.run(self.grad_update, feed_dict={
+      self.state_input: state_batch,
+      self.action_input: one_hot_actions,
+      self.y_input: y_batch})
+
+  def save_network(self, time_step):
+    self.saver.save(self.sess, config.CHECKPOINT_PATH, global_step=time_step)
