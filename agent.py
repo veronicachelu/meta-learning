@@ -2,10 +2,10 @@ from collections import deque
 import numpy as np
 import config
 import random
-from network import DQNetwork
 import cv2
 import threading
 import time
+T = 0
 
 class AgentAsyncDQN(threading.Thread):
 

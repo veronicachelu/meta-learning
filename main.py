@@ -5,7 +5,6 @@ from agent import AgentAsyncDQN
 import threading
 from network import AsyncDQNetwork
 import time
-T = 0
 
 def main():
 

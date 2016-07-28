@@ -28,12 +28,12 @@ class AsyncDQNetwork:
       self.cost = tf.reduce_mean(tf.square(self.y_input - self.q_value_output))
       self.grad_update = tf.train.AdamOptimizer(config.LEARN_RATE).minimize(self.cost, var_list=self.network_params)
 
-      # Initialize target network weights
-      self.sess.run(self.reset_target_network_params)
+      self.saver = tf.train.Saver()
 
       self.sess.run(tf.initialize_all_variables())
 
-      self.saver = tf.train.Saver()
+      # Initialize target network weights
+      self.sess.run(self.reset_target_network_params)
 
       if not os.path.exists(config.CHECKPOINT_PATH):
         os.mkdir(config.CHECKPOINT_PATH)
