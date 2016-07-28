@@ -30,7 +30,7 @@ def main():
     now = time.time()
     if now - last_summary_time > config.SUMMARY_INTERVAL:
       summary_str = network.run_summary_op()
-      network.writer.add_summary(summary_str, float(T))
+      network.writer.add_summary(summary_str, float(network.T))
       last_summary_time = now
 
   for t in actor_learner_threads:

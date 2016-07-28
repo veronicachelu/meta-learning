@@ -31,13 +31,11 @@ class AgentAsyncDQN(threading.Thread):
 
 
   def run(self):
-    global T
-
     print "Starting thread ", self.thread_id, "with final epsilon ", self.final_probability_of_random_action
 
     time.sleep(3 * self.thread_id)
 
-    while T < config.EPISODES:
+    while self.network.T < config.EPISODES:
       obs = self.env.reset()
       self.set_initial_state(obs)
 
@@ -69,7 +67,7 @@ class AgentAsyncDQN(threading.Thread):
 
         # Accumulate gradients
         # this gives us the agents expected reward for each action we might
-        target_q_values = self.network.get_target_q_values([next_state])
+        target_q_values = self.network.get_target_q_values(next_state)
         clipped_reward = np.clip(reward, -1, 1)
 
         if done:
@@ -82,7 +80,7 @@ class AgentAsyncDQN(threading.Thread):
 
         # Update the state and counters
         self.state = next_state
-        T += 1
+        self.network.T += 1
         self.time_step += 1
 
         ep_t += 1
@@ -90,14 +88,14 @@ class AgentAsyncDQN(threading.Thread):
         episode_ave_max_q += np.max(q_values)
 
         # Update target network
-        if T % config.TARGET_NETWORK_UPDATE_FREQUENCY == 0:
+        if self.network.T % config.TARGET_NETWORK_UPDATE_FREQUENCY == 0:
           self.network.reset_target_network()
 
         # Update online network
         if self.time_step % config.NETWORK_UPDATE_FREQUENCY == 0 or done:
           if self.s_batch:
             one_hot_actions = np.eye(self.env.action_space.n)[self.a_batch]
-            self.network.grad_update(self.y_batch, self.s_batch, one_hot_actions)
+            self.network.run_grad_update(self.y_batch, self.s_batch, one_hot_actions)
           # Clear gradients
           self.s_batch = []
           self.a_batch = []
@@ -111,7 +109,7 @@ class AgentAsyncDQN(threading.Thread):
           stats = [ep_reward, episode_ave_max_q / float(ep_t), self.probability_of_random_action]
           self.network.update_summaries(stats)
 
-          print "THREAD:", self.thread_id, "/ TIME", T, "/ TIMESTEP", self.time_step, "/ EPSILON", \
+          print "THREAD:", self.thread_id, "/ TIME", self.network.T, "/ TIMESTEP", self.time_step, "/ EPSILON", \
             self.probability_of_random_action, "/ REWARD", ep_reward, \
             "/ Q_MAX %.4f" % (episode_ave_max_q / float(ep_t)), "/ EPSILON PROGRESS", self.time_step / float(config.EPISODES)
           break

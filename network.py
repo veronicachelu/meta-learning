@@ -10,6 +10,8 @@ class AsyncDQNetwork:
     with tf.Graph().as_default():
       self.sess = tf.InteractiveSession()
 
+      self.T = 0
+
       # network params:
       self.state_input, self.q_values, self.network_params = self.create_network(action_size)
 
@@ -30,6 +32,8 @@ class AsyncDQNetwork:
 
       self.saver = tf.train.Saver()
 
+      self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summaries()
+
       self.sess.run(tf.initialize_all_variables())
 
       # Initialize target network weights
@@ -45,7 +49,7 @@ class AsyncDQNetwork:
       else:
         print "Could not find old network weights"
 
-      self.summary_placeholders, self.update_ops, self.summary_op = self.setup_summaries()
+
 
       if not os.path.exists(config.SUMMARY_PATH):
         os.mkdir(config.SUMMARY_PATH)
@@ -166,8 +170,8 @@ class AsyncDQNetwork:
     return q_values
 
 
-  def get_target_q_batch(self, state_batch):
-    Q_s_a = self.sess.run(self.target_q_values, feed_dict={self.state_input: state_batch})
+  def get_target_q_values(self, state_batch):
+    Q_s_a = self.sess.run(self.target_q_values, feed_dict={self.target_state_input: [state_batch]})[0]
     return Q_s_a
 
 
@@ -175,7 +179,7 @@ class AsyncDQNetwork:
     self.sess.run(self.reset_target_network_params)
 
 
-  def grad_update(self, y_batch, state_batch, one_hot_actions):
+  def run_grad_update(self, y_batch, state_batch, one_hot_actions):
     # learn that these actions in these states lead to this reward
     self.sess.run(self.grad_update, feed_dict={
       self.state_input: state_batch,
