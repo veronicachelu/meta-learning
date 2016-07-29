@@ -102,7 +102,7 @@ class AgentAsyncDQN(threading.Thread):
           self.y_batch = []
 
         # Save model progress
-        if self.time_step % config.SAVE_EVERY_X_STEPS == 0:
+        if self.network.T % config.SAVE_EVERY_X_STEPS == 0:
           self.network.save_network(self.time_step)
 
         if done:
