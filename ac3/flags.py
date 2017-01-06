@@ -24,8 +24,6 @@ tf.app.flags.DEFINE_integer('RESIZED_SCREEN_X', 80,
                             """Screen size.""")
 tf.app.flags.DEFINE_integer('RESIZED_SCREEN_Y', 80,
                             """Screen size.""")
-tf.app.flags.DEFINE_integer('ENTROPY_BETA', 0.01,
-                            """entropy param.""")
 tf.app.flags.DEFINE_integer('STORE_SCORES_LEN', 200,
                             """How much memory the score vector should have.""")
 tf.app.flags.DEFINE_integer('NUM_THREADS', 2,
@@ -39,15 +37,13 @@ tf.app.flags.DEFINE_integer('MAX_TIME_STEPS', 32,
                             """Max no of time steps.""")
 tf.app.flags.DEFINE_integer('batch_size', 2,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_boolean('SHOW_TRAINING', True,
-                            """Wether to show the game window or not""")
-tf.app.flags.DEFINE_string('CHECKPOINT_PATH', './checkpoints/checkpoint',
+tf.app.flags.DEFINE_boolean('SHOW_TRAINING', False,
+                            """Whether to show the game window or not""")
+tf.app.flags.DEFINE_boolean('RESUME', False,
+                            """whether to resume from checkpoints""")
+tf.app.flags.DEFINE_string('CHECKPOINT_PATH', './checkpoints',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_string('SUMMARY_PATH', './summaries',
                            """Directory where to write event logs""")
 tf.app.flags.DEFINE_string('EXPERIMENT', 'Breakout-v0',
                            """Name of the game""")
-
-
-
-

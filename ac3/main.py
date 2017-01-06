@@ -1,40 +1,46 @@
 import gym
 import tensorflow as tf
-import config
+import flags
 from agent import AgentAsyncAC3
 import threading
 from network import AsyncAC3Network
-import time
+
+
+FLAGS = tf.app.flags.FLAGS
+
 
 def main():
+    if not FLAGS.RESUME:
+        if tf.gfile.Exists(FLAGS.CHECKPOINT_PATH):
+            tf.gfile.DeleteRecursively(FLAGS.CHECKPOINT_PATH)
+        tf.gfile.MakeDirs(FLAGS.CHECKPOINT_PATH)
 
-  # Set up game environments (one per thread)
-  envs = [gym.make(config.EXPERIMENT) for i in range(config.NUM_THREADS)]
-  action_size = envs[0].action_space.n
+        if tf.gfile.Exists(FLAGS.SUMMARY_PATH):
+            tf.gfile.DeleteRecursively(FLAGS.SUMMARY_PATH)
+        tf.gfile.MakeDirs(FLAGS.SUMMARY_PATH)
 
-  network = AsyncAC3Network(action_size)
+    # Set up game environments (one per thread)
+    envs = [gym.make(FLAGS.EXPERIMENT) for _ in range(FLAGS.NUM_THREADS)]
+    action_size = envs[0].action_space.n
 
-  actor_learner_threads = [AgentAsyncAC3(args=(thread_id, envs[thread_id], network)) for thread_id in
-                           range(config.NUM_THREADS)]
-  for t in actor_learner_threads:
-    t.start()
+    network = AsyncAC3Network(action_size)
 
-  last_summary_time = 0
-  while True:
-    if config.SHOW_TRAINING:
-      for env in envs:
-        env.render()
+    actor_learner_threads = [AgentAsyncAC3(args=(thread_id, envs[thread_id], network)) for thread_id in
+                             range(FLAGS.NUM_THREADS)]
+    for t in actor_learner_threads:
+        t.start()
 
-    # write summary statistics
 
-    now = time.time()
-    if now - last_summary_time > config.SUMMARY_INTERVAL:
-      summary_str = network.run_summary_op()
-      network.writer.add_summary(summary_str, float(network.T))
-      last_summary_time = now
+    while True:
+        if FLAGS.SHOW_TRAINING:
+            for env in envs:
+                env.render()
 
-  for t in actor_learner_threads:
-    t.join()
+
+
+    for t in actor_learner_threads:
+        t.join()
+
 
 if __name__ == '__main__':
-  main()
+    main()
