@@ -12,8 +12,7 @@ T = 0
 class AgentAsyncAC3(threading.Thread):
     def __init__(self, group=None, target=None, name=None,
                  args=(), kwargs=None, verbose=None):
-        threading.Thread.__init__(self, group=group, target=target, name=name,
-                                  verbose=verbose)
+        threading.Thread.__init__(self, group=group, target=target, name=name)
         self.thread_id, self.env, self.network = args
 
         self.actions = range(self.env.action_space.n)
