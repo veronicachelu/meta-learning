@@ -20,24 +20,29 @@ class AsyncAC3Network:
 
             self.T = 0
             # Store layers weight & bias
-            weights = {
+            self.weights = {
                 'conv1_w': tf.get_variable("Conv1_W", shape=[8, 8, FLAGS.STATE_FRAMES, 32],
-                                      initializer=tf.contrib.layers.xavier_initializer()),
-                # 5x5 conv, 32 inputs, 64 outputs
-                'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-                # fully connected, 7*7*64 inputs, 1024 outputs
-                'wd1': tf.Variable(tf.random_normal([7 * 7 * 64, 1024])),
-                # 1024 inputs, 10 outputs (class prediction)
-                'out': tf.Variable(tf.random_normal([1024, n_classes]))
+                                           initializer=tf.contrib.layers.xavier_initializer()),
+                'conv2_w': tf.get_variable("Conv2_W", shape=[4, 4, 32, 64],
+                                           initializer=tf.contrib.layers.xavier_initializer()),
+                'conv3_w': tf.get_variable("Conv3_W", shape=[3, 3, 64, 64],
+                                           initializer=tf.contrib.layers.xavier_initializer()),
+                'fc1_w': tf.get_variable("FC1_W", shape=[64, 256],
+                                         initializer=tf.contrib.layers.xavier_initializer()),
+                'fc2_w': tf.get_variable("FC2_pol_W", shape=[256, action_size],
+                                         initializer=tf.contrib.layers.xavier_initializer()),
+                'fc3_w': tf.get_variable("FC3_val_W", shape=[256, 1],
+                                         initializer=tf.contrib.layers.xavier_initializer()),
             }
-            #
-            # biases = {
-            #     'bc1': tf.Variable(tf.random_normal([32])),
-            #     'bc2': tf.Variable(tf.random_normal([64])),
-            #     'bd1': tf.Variable(tf.random_normal([1024])),
-            #     'out': tf.Variable(tf.random_normal([n_classes]))
-            # }
-            #
+
+            self.biases = {
+                'conv1_b': tf.Variable(tf.constant(0.01, shape=[32]), name='Conv1_b'),
+                'conv2_b': tf.Variable(tf.constant(0.01, shape=[64]), name="Conv2_b"),
+                'conv3_b': tf.Variable(tf.constant(0.01, shape=[64]), name="Conv3_b"),
+                'fc1_b': tf.Variable(tf.constant(0.01, shape=[256]), name="FC1_b"),
+                'fc2_b': tf.Variable(tf.constant(0.01, shape=[action_size]), name="FC2_pol_b"),
+                'fc3_b': tf.Variable(tf.constant(0.01, shape=[1]), name="FC3_val_b")
+            }
 
             with tf.name_scope('Model'):
                 # network params:
@@ -53,7 +58,7 @@ class AsyncAC3Network:
                 self.entropy = -tf.reduce_sum(self.policy_output * tf.log(self.policy_output), reduction_indices=1)
                 self.loss_policy = -tf.reduce_sum(tf.reduce_sum(tf.mul(tf.log(self.policy_output), self.action_input),
                                                                 reduction_indices=1) * (
-                                                  self.r_input - self.value_output) +
+                                                      self.r_input - self.value_output) +
                                                   self.entropy * FLAGS.ENTROPY_BETA)
                 tf.scalar_summary('Policy loss (raw)', self.loss_policy)
                 loss_policy_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
@@ -134,52 +139,24 @@ class AsyncAC3Network:
             return state_input, policy_output_layer, value_output_layer, policy_params, value_params
 
     def create_network(self, action_size):
-        policy_params = []
-        value_params = []
+
         with tf.device("/cpu:0"), tf.variable_scope('net') as scope:
             state_input = tf.placeholder("float", [None, FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y,
                                                    FLAGS.STATE_FRAMES], name='StateInput')
 
-            # network weights
-            # convolution_weights_1 = tf.Variable(tf.truncated_normal([8, 8, FLAGS.STATE_FRAMES, 32], stddev=0.01),
-            #                                     name='Conv1_W')
-            conv1_w = self.weights['conv1_w']
-            conv1_b = tf.Variable(tf.constant(0.01, shape=[32]), name='Conv1_b')
-
-            policy_params.append(self.weights['conv1_w'])
-            policy_params.append(conv1_b)
-            value_params.append(conv1_w)
-            value_params.append(conv1_b)
-
-            conv1 = self.conv2d(state_input, conv1_w, conv1_b, strides=4, padding="SAME")
+            conv1 = self.conv2d(state_input, self.weights['conv1_w'], self.biases['conv1_b'], strides=4, padding="SAME")
             relu1 = tf.nn.relu(conv1)
             tf.histogram_summary("conv_relu1", conv1)
 
             maxpool1 = self.maxpool2d(relu1, k=2, padding="SAME")
 
-            conv2_w = tf.Variable(tf.truncated_normal([4, 4, 32, 64], stddev=0.01), name="Conv2_W")
-            conv2_b = tf.Variable(tf.constant(0.01, shape=[64]), name="Conv1_b")
-
-            policy_params.append(conv2_w)
-            policy_params.append(conv2_b)
-            value_params.append(conv2_w)
-            value_params.append(conv2_b)
-
-            conv2 = self.conv2d(maxpool1, conv2_w, conv2_b, strides=2, padding="SAME")
+            conv2 = self.conv2d(maxpool1, self.weights['conv2_w'], self.biases['conv2_b'], strides=2, padding="SAME")
             relu2 = tf.nn.relu(conv2)
             tf.histogram_summary("conv_relu2", conv2)
 
             maxpool2 = self.maxpool2d(relu2, k=2, padding="SAME")
 
-            conv3_w = tf.Variable(tf.truncated_normal([3, 3, 64, 64], stddev=0.01), name="Conv3_W")
-            conv3_b = tf.Variable(tf.constant(0.01, shape=[64]), name="Conv3_b")
-
-            policy_params.append(conv3_w)
-            policy_params.append(conv3_b)
-            value_params.append(conv3_w)
-            value_params.append(conv3_b)
-
-            conv3 = self.conv2d(maxpool2, conv3_w, conv3_b, strides=1, padding="SAME")
+            conv3 = self.conv2d(maxpool2, self.weights['conv3_w'], self.biases['conv3_b'], strides=1, padding="SAME")
             relu3 = tf.nn.relu(conv3)
             tf.histogram_summary("conv_relu3", conv3)
 
@@ -192,16 +169,7 @@ class AsyncAC3Network:
 
             maxpool3_flat = tf.reshape(maxpool3, [-1, maxpool3_shape])
 
-            fc1_w = tf.Variable(
-                tf.truncated_normal([maxpool3_shape, 256], stddev=0.01), name="FC1_W")
-            fc1_b = tf.Variable(tf.constant(0.01, shape=[256]), name="FC1_b")
-
-            policy_params.append(fc1_w)
-            policy_params.append(fc1_b)
-            value_params.append(fc1_w)
-            value_params.append(fc1_b)
-
-            fc1 = tf.matmul(maxpool3_flat, fc1_w) + fc1_b
+            fc1 = tf.matmul(maxpool3_flat, self.weights['fc1_w']) + self.biases['fc1_b']
             fc1_relu = tf.nn.relu(fc1)
             tf.histogram_summary("fc_relu1", fc1)
 
@@ -223,31 +191,15 @@ class AsyncAC3Network:
             W_lstm = tf.get_variable("RNN/BasicLSTMCell/Linear/Matrix")
             b_lstm = tf.get_variable("RNN/BasicLSTMCell/Linear/Bias")
 
-            policy_params.append(W_lstm)
-            policy_params.append(b_lstm)
-            value_params.append(W_lstm)
-            value_params.append(b_lstm)
-
-            fc2_w = tf.Variable(tf.truncated_normal([256, action_size], stddev=0.01), name="FC2_pol_W")
-            fc2_b = tf.Variable(tf.constant(0.01, shape=[action_size]), name="FC2_pol_b")
-
-            policy_params.append(fc2_w)
-            policy_params.append(fc2_b)
-
-            fc3_w = tf.Variable(tf.truncated_normal([256, 1], stddev=0.01), name="FC3_val_W")
-            fc3_b = tf.Variable(tf.constant(0.01, shape=[1]), name="FC3_val_b")
-
-            value_params.append(fc3_w)
-            value_params.append(fc3_b)
-
             policy_output_layer = tf.nn.softmax(
-                tf.matmul(lstm_outputs, fc2_w) + fc2_b)
-            value_output_layer = tf.matmul(lstm_outputs, fc3_w) + fc3_b
+                tf.matmul(lstm_outputs, self.weights['fc2_w']) + self.biases['fc2_b'])
+            value_output_layer = tf.matmul(lstm_outputs, self.weights['fc3_w']) + self.biases['fc3_b']
 
             lstm_state_out = tf.nn.rnn_cell.LSTMStateTuple(np.zeros([1, 256]),
                                                            np.zeros([1, 256]))
 
-            return (state_input, policy_output_layer, value_output_layer, policy_params, value_params, lstm_state_out,
+            return (state_input, policy_output_layer, value_output_layer, self.get_policy_params(W_lstm, b_lstm),
+                    self.get_value_params(W_lstm, b_lstm), lstm_state_out,
                     initial_lstm_state0, initial_lstm_state1, step_size, lstm_state)
 
     def get_policy_output(self, last_state):
@@ -332,3 +284,35 @@ class AsyncAC3Network:
         # MaxPool2D wrapper
         return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
                               padding=padding)
+
+    def get_policy_params(self, W_lstm, b_lstm):
+        policy_params = []
+        policy_params.append(self.weights['conv1_w'])
+        policy_params.append(self.biases['conv1_b'])
+        policy_params.append(self.weights['conv2_w'])
+        policy_params.append(self.biases['conv2_b'])
+        policy_params.append(self.weights['conv3_w'])
+        policy_params.append(self.biases['conv3_b'])
+        policy_params.append(self.weights['fc1_w'])
+        policy_params.append(self.biases['fc1_b'])
+        policy_params.append(W_lstm)
+        policy_params.append(b_lstm)
+        policy_params.append(self.weights['fc2_w'])
+        policy_params.append(self.biases['fc2_b'])
+        return policy_params
+
+    def get_value_params(self, W_lstm, b_lstm):
+        value_params = []
+        value_params.append(self.weights['conv1_w'])
+        value_params.append(self.biases['conv1_b'])
+        value_params.append(self.weights['conv2_w'])
+        value_params.append(self.biases['conv2_b'])
+        value_params.append(self.weights['conv3_w'])
+        value_params.append(self.biases['conv3_b'])
+        value_params.append(self.weights['fc1_w'])
+        value_params.append(self.biases['fc1_b'])
+        value_params.append(W_lstm)
+        value_params.append(b_lstm)
+        value_params.append(self.weights['fc3_w'])
+        value_params.append(self.biases['fc3_b'])
+        return value_params

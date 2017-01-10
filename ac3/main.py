@@ -1,4 +1,6 @@
+import gym_ple
 import gym
+
 import tensorflow as tf
 import flags
 from agent import AgentAsyncAC3
