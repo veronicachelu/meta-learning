@@ -1,5 +1,5 @@
-import gym_ple
 import gym
+import gym_ple
 
 import tensorflow as tf
 import flags
