@@ -47,7 +47,7 @@ class AsyncAC3Network:
             with tf.name_scope('Model'):
                 # network params:
                 self.state_input, self.policy_output, self.value_output, self.policy_params, self.value_params, \
-                self.lstm_state_out, self.initial_lstm_state0, self.initial_lstm_state1, self.step_size, self.lstm_state = \
+                self.lstm_state_out, self.initial_lstm_state, self.sequence_length, self.lstm_state = \
                     self.create_network(action_size)
 
             self.action_input = tf.placeholder("float", [None, action_size])
@@ -108,116 +108,91 @@ class AsyncAC3Network:
 
             self.writer = tf.train.SummaryWriter(FLAGS.SUMMARY_PATH, self.sess.graph)
 
-    def create_network_keras(self, action_size):
-        with tf.device("/cpu:0"):
-            state_input = tf.placeholder("float", [None, config.RESIZED_SCREEN_X, config.RESIZED_SCREEN_Y,
-                                                   config.STATE_FRAMES])
-
-            inputs = Input(shape=(config.RESIZED_SCREEN_X, config.RESIZED_SCREEN_Y, config.STATE_FRAMES))
-            shared = Convolution2D(name="conv1", nb_filter=16, nb_row=8, nb_col=8, subsample=(4, 4),
-                                   activation='relu',
-                                   border_mode='same')(inputs)
-            shared = Convolution2D(name="conv2", nb_filter=32, nb_row=4, nb_col=4, subsample=(2, 2),
-                                   activation='relu',
-                                   border_mode='same')(shared)
-            shared = Flatten()(shared)
-            shared = Dense(name="h1", output_dim=256, activation='relu')(shared)
-
-            action_probs = Dense(name="p", output_dim=action_size, activation='softmax')(shared)
-
-            state_value = Dense(name="v", output_dim=1, activation='linear')(shared)
-
-            policy_network = Model(input=inputs, output=action_probs)
-            value_network = Model(input=inputs, output=state_value)
-
-            policy_params = policy_network.trainable_weights
-            value_params = value_network.trainable_weights
-
-            policy_output_layer = policy_network(state_input)
-            value_output_layer = value_network(state_input)
-
-            return state_input, policy_output_layer, value_output_layer, policy_params, value_params
-
     def create_network(self, action_size):
 
         with tf.device("/cpu:0"), tf.variable_scope('net') as scope:
             state_input = tf.placeholder("float", [None, FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y,
                                                    FLAGS.STATE_FRAMES], name='StateInput')
 
-            conv1 = self.conv2d(state_input, self.weights['conv1_w'], self.biases['conv1_b'], strides=4, padding="SAME")
-            relu1 = tf.nn.relu(conv1)
-            tf.histogram_summary("conv_relu1", conv1)
+            # shared parts
+            with tf.variable_scope("%s_shared" % scope):
+                conv1 = self.conv2d(state_input, self.weights['conv1_w'], self.biases['conv1_b'], strides=4, padding="SAME")
+                relu1 = tf.nn.relu(conv1)
+                tf.histogram_summary("conv_relu1", conv1)
 
-            maxpool1 = self.maxpool2d(relu1, k=2, padding="SAME")
+                maxpool1 = self.maxpool2d(relu1, k=2, padding="SAME")
 
-            conv2 = self.conv2d(maxpool1, self.weights['conv2_w'], self.biases['conv2_b'], strides=2, padding="SAME")
-            relu2 = tf.nn.relu(conv2)
-            tf.histogram_summary("conv_relu2", conv2)
+                    conv2 = self.conv2d(maxpool1, self.weights['conv2_w'], self.biases['conv2_b'], strides=2, padding="SAME")
+                    relu2 = tf.nn.relu(conv2)
+                    tf.histogram_summary("conv_relu2", conv2)
 
-            maxpool2 = self.maxpool2d(relu2, k=2, padding="SAME")
+                    maxpool2 = self.maxpool2d(relu2, k=2, padding="SAME")
 
-            conv3 = self.conv2d(maxpool2, self.weights['conv3_w'], self.biases['conv3_b'], strides=1, padding="SAME")
-            relu3 = tf.nn.relu(conv3)
-            tf.histogram_summary("conv_relu3", conv3)
+                    conv3 = self.conv2d(maxpool2, self.weights['conv3_w'], self.biases['conv3_b'], strides=1, padding="SAME")
+                    relu3 = tf.nn.relu(conv3)
+                    tf.histogram_summary("conv_relu3", conv3)
 
-            maxpool3 = self.maxpool2d(relu3, k=2, padding="SAME")
+                    maxpool3 = self.maxpool2d(relu3, k=2, padding="SAME")
 
-            maxpool3_shape = maxpool3.get_shape()[1] * \
-                             maxpool3.get_shape()[2] * \
-                             maxpool3.get_shape()[3]
-            maxpool3_shape = maxpool3_shape.value
+                    maxpool3_shape = maxpool3.get_shape()[1] * \
+                                     maxpool3.get_shape()[2] * \
+                                     maxpool3.get_shape()[3]
+                    maxpool3_shape = maxpool3_shape.value
 
-            maxpool3_flat = tf.reshape(maxpool3, [-1, maxpool3_shape])
+                    maxpool3_flat = tf.reshape(maxpool3, [-1, maxpool3_shape])
 
-            fc1 = tf.matmul(maxpool3_flat, self.weights['fc1_w']) + self.biases['fc1_b']
-            fc1_relu = tf.nn.relu(fc1)
-            tf.histogram_summary("fc_relu1", fc1)
+                    fc1 = tf.matmul(maxpool3_flat, self.weights['fc1_w']) + self.biases['fc1_b']
+                    fc1_relu = tf.nn.relu(fc1)
+                    tf.histogram_summary("fc_relu1", fc1)
 
-            lstm = tf.nn.rnn_cell.BasicLSTMCell(256, state_is_tuple=True)
-            fc1_relu_reshaped = tf.reshape(fc1_relu, [1, -1, 256])
-            initial_lstm_state0 = tf.placeholder(tf.float32, [1, 256])
-            initial_lstm_state1 = tf.placeholder(tf.float32, [1, 256])
-            initial_lstm_state = tf.nn.rnn_cell.LSTMStateTuple(initial_lstm_state0, initial_lstm_state1)
-            step_size = tf.placeholder(tf.float32, [1], name="StepSize")
+            # rnn parts
+            with tf.variable_scope("%s_rnn" % scope):
+                lstm = tf.nn.rnn_cell.BasicLSTMCell(256)
+                fc1_relu_reshaped = tf.reshape(fc1_relu, [1, -1, 256])
 
-            lstm_outputs, lstm_state = tf.nn.dynamic_rnn(lstm, fc1_relu_reshaped,
-                                                         initial_state=initial_lstm_state,
-                                                         sequence_length=step_size,
-                                                         time_major=False)
-            lstm_outputs = tf.reshape(lstm_outputs, [-1, 256])
-            tf.histogram_summary("lstm", lstm_outputs)
+                self.initial_lstm_state = tf.placeholder(tf.float32, [1, 256], name="init_lstm_state")
+                self.sequence_length = tf.placeholder(tf.int32, [1], name="seq_length")
 
-            scope.reuse_variables()
-            W_lstm = tf.get_variable("RNN/BasicLSTMCell/Linear/Matrix")
-            b_lstm = tf.get_variable("RNN/BasicLSTMCell/Linear/Bias")
+                lstm_outputs, self.lstm_state = tf.nn.dynamic_rnn(lstm, fc1_relu_reshaped,
+                                                             initial_state=self.initial_lstm_state,
+                                                             sequence_length=self.sequence_length,
+                                                             time_major=False)
+                lstm_outputs = tf.reshape(lstm_outputs, [-1, 256])
+                tf.histogram_summary("lstm", lstm_outputs)
 
-            policy_output_layer = tf.nn.softmax(
-                tf.matmul(lstm_outputs, self.weights['fc2_w']) + self.biases['fc2_b'])
-            value_output_layer = tf.matmul(lstm_outputs, self.weights['fc3_w']) + self.biases['fc3_b']
+                scope.reuse_variables()
+                W_lstm = tf.get_variable("RNN/BasicLSTMCell/Linear/Matrix")
+                b_lstm = tf.get_variable("RNN/BasicLSTMCell/Linear/Bias")
+
+            # policy parts
+            with tf.variable_scope("%s_policy" % scope):
+                policy_output_layer = tf.nn.softmax(
+                    tf.matmul(lstm_outputs, self.weights['fc2_w']) + self.biases['fc2_b'])
+
+            # value parts
+            with tf.variable_scope("%s_value" % scope):
+                value_output_layer = tf.matmul(lstm_outputs, self.weights['fc3_w']) + self.biases['fc3_b']
 
             lstm_state_out = tf.nn.rnn_cell.LSTMStateTuple(np.zeros([1, 256]),
                                                            np.zeros([1, 256]))
 
             return (state_input, policy_output_layer, value_output_layer, self.get_policy_params(W_lstm, b_lstm),
                     self.get_value_params(W_lstm, b_lstm), lstm_state_out,
-                    initial_lstm_state0, initial_lstm_state1, step_size, lstm_state)
+                    self.initial_lstm_state, self.sequence_length, self.lstm_state)
 
     def get_policy_output(self, last_state):
         [policy_output_values, self.lstm_state_out] = self.sess.run([self.policy_output, self.lstm_state],
                                                                     feed_dict={self.state_input: [last_state],
-                                                                               self.initial_lstm_state0:
-                                                                                   self.lstm_state_out[0],
-                                                                               self.initial_lstm_state1:
-                                                                                   self.lstm_state_out[1],
-                                                                               self.step_size: [1]})
+                                                                               self.initial_lstm_state:
+                                                                                   self.lstm_state_out,
+                                                                               self.sequence_length: [1]})
         return policy_output_values[0]
 
     def get_value_output(self, last_state):
         [value_output, self.lstm_state_out] = self.sess.run([self.value_output, self.lstm_state], feed_dict={
             self.state_input: [last_state],
-            self.initial_lstm_state0: self.lstm_state_out[0],
-            self.initial_lstm_state1: self.lstm_state_out[1],
-            self.step_size: [1]
+            self.initial_lstm_state: self.lstm_state_out,
+            self.sequence_length: [1]
         })
         return value_output[0]
 
@@ -227,11 +202,9 @@ class AsyncAC3Network:
             self.state_input: state_batch,
             self.action_input: one_hot_actions,
             self.r_input: r_input,
-            self.initial_lstm_state0:
-                self.lstm_state_out[0],
-            self.initial_lstm_state1:
-                self.lstm_state_out[1],
-            self.step_size: [1]
+            self.initial_lstm_state:
+                self.lstm_state_out,
+            self.sequence_length: [1]
         }
         self.sess.run(self.train_op, feed_dict=feed)
 
@@ -316,3 +289,7 @@ class AsyncAC3Network:
         value_params.append(self.weights['fc3_w'])
         value_params.append(self.biases['fc3_b'])
         return value_params
+
+
+    def reset_lstm_state(self):
+        self.lstm_state_out = np.zeros((1, 256), dtype=np.float32)
