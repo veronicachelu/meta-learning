@@ -57,17 +57,7 @@ class AgentAsyncAC3(threading.Thread):
 
                 obs, reward, done, _ = self.env.step(action)
 
-                # build next state
-                obs_resized_grayscaled = cv2.cvtColor(
-                    cv2.resize(obs, (FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y)),
-                    cv2.COLOR_BGR2GRAY)
-                # set the pixels to all be 0. or 1.
-                _, obs_resized_binary = cv2.threshold(obs_resized_grayscaled, 1, 255, cv2.THRESH_BINARY)
-
-                obs_resized_binary = np.reshape(obs_resized_binary,
-                                                (FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y, 1))
-
-                next_state = np.append(self.state[:, :, 1:], obs_resized_binary, axis=2)
+                next_state = self.build_next_state(obs)
 
                 clipped_reward = np.clip(reward, -1, 1)
 
@@ -86,15 +76,9 @@ class AgentAsyncAC3(threading.Thread):
                 ep_reward += reward
 
             if done:
-                self.v_t = 0
-            else:
-                self.v_t = self.network.get_value_output(self.state)
+                self.network.reset_lstm_state()
 
-            self.r_input = np.zeros(self.time_step)
-            for i in reversed(range(self.time_step_start, self.time_step)):
-                self.v_t = self.r_batch[i] + FLAGS.FUTURE_REWARD_DISCOUNT * self.v_t
-                self.r_input[i] = self.v_t
-                episode_avg_v += self.v_t
+            self.calculate_targets(done, episode_avg_v)
 
             last_summary_time = self.network.train(self.s_batch, self.a_batch, self.r_input, last_summary_time)
 
@@ -102,13 +86,13 @@ class AgentAsyncAC3(threading.Thread):
             if self.network.T % FLAGS.SAVE_EVERY_X_STEPS == 0:
                 self.network.save_network(self.time_step)
 
-            # if done:
-            stats = [ep_reward, episode_avg_v / float(ep_t)]
-            self.network.update_summaries(stats)
+            if done:
+                stats = [ep_reward, episode_avg_v / float(ep_t)]
+                self.network.update_summaries(stats)
 
-            print("THREAD:", self.thread_id, "/ TIME", self.network.T, "/ TIMESTEP", self.time_step_thread,
-                  "/ REWARD", ep_reward, \
-                  "/ V %.4f" % (episode_avg_v / float(ep_t)))
+                print("THREAD:", self.thread_id, "/ TIME", self.network.T, "/ TIMESTEP", self.time_step_thread,
+                      "/ REWARD", ep_reward, \
+                      "/ V %.4f" % (episode_avg_v / float(ep_t)))
 
     def set_initial_state(self, obs):
         obs_resized_grayscaled = cv2.cvtColor(cv2.resize(obs, (FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y)),
@@ -134,3 +118,30 @@ class AgentAsyncAC3(threading.Thread):
         final_epsilons = np.array([.1, .01, .5])
         probabilities = np.array([0.4, 0.3, 0.3])
         return np.random.choice(final_epsilons, 1, p=list(probabilities))[0]
+
+    def build_next_state(self, obs):
+        # build next state
+        obs_resized_grayscaled = cv2.cvtColor(
+            cv2.resize(obs, (FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y)),
+            cv2.COLOR_BGR2GRAY)
+        # set the pixels to all be 0. or 1.
+        _, obs_resized_binary = cv2.threshold(obs_resized_grayscaled, 1, 255, cv2.THRESH_BINARY)
+
+        obs_resized_binary = np.reshape(obs_resized_binary,
+                                        (FLAGS.RESIZED_SCREEN_X, FLAGS.RESIZED_SCREEN_Y, 1))
+
+        next_state = np.append(self.state[:, :, 1:], obs_resized_binary, axis=2)
+
+        return next_state
+
+    def calculate_targets(self, done, episode_avg_v):
+        if done:
+            self.v_t = 0
+        else:
+            self.v_t = self.network.get_value_output(self.state)
+
+        self.r_input = np.zeros(self.time_step)
+        for i in reversed(range(self.time_step_start, self.time_step)):
+            self.v_t = self.r_batch[i] + FLAGS.FUTURE_REWARD_DISCOUNT * self.v_t
+            self.r_input[i] = self.v_t
+            episode_avg_v += self.v_t
