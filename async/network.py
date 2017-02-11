@@ -16,7 +16,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class AC_Network():
-    def __init__(self, scope, trainer):
+    def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             # Input and visual encoding layers
             self.inputs = tf.placeholder(
@@ -57,46 +57,46 @@ class AC_Network():
             step_size = tf.shape(self.inputs)[:1]
             state_in = tf.nn.rnn_cell.LSTMStateTuple(c_in, h_in)
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-            lstm_cell, rnn_in, initial_state = state_in, sequence_length = step_size,
-            time_major = False)
+                lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
+                time_major=False)
             lstm_c, lstm_h = lstm_state
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
             rnn_out = tf.reshape(lstm_outputs, [-1, 256])
 
             # Output layers for policy and value estimations
-            self.policy = slim.fully_connected(rnn_out, FLAGS.nb_actions,
-            activation_fn = tf.nn.softmax,
-            weights_initializer = normalized_columns_initializer(0.01),
-            biases_initializer = None)
+            self.policy = slim.fully_connected(rnn_out, nb_actions,
+                                               activation_fn=tf.nn.softmax,
+                                               weights_initializer=normalized_columns_initializer(0.01),
+                                               biases_initializer=None)
             self.value = slim.fully_connected(rnn_out, 1,
-        activation_fn = None,
-        weights_initializer = normalized_columns_initializer(1.0),
-        biases_initializer = None)
+                                              activation_fn=None,
+                                              weights_initializer=normalized_columns_initializer(1.0),
+                                              biases_initializer=None)
 
-        # Only the worker network need ops for loss functions and gradient updating.
-        if scope != 'global':
-            self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
-        self.actions_onehot = tf.one_hot(self.actions, FLAGS.nb_actions, dtype=tf.float32)
-        self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
-        self.advantages = tf.placeholder(shape=[None], dtype=tf.float32)
+            # Only the worker network need ops for loss functions and gradient updating.
+            if scope != 'global':
+                self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
+                self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32)
+                self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
+                self.advantages = tf.placeholder(shape=[None], dtype=tf.float32)
 
-        self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
+                self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
-        # Loss functions
-        self.value_loss = 0.5 * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
-        self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
-        self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs) * self.advantages)
-        self.loss = 0.5 * self.value_loss + self.policy_loss - self.entropy * 0.01
+                # Loss functions
+                self.value_loss = 0.5 * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
+                self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
+                self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs) * self.advantages)
+                self.loss = 0.5 * self.value_loss + self.policy_loss - self.entropy * 0.01
 
-        # Get gradients from local network using local losses
-        local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-        self.gradients = tf.gradients(self.loss, local_vars)
-        self.var_norms = tf.global_norm(local_vars)
-        grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, 40.0)
+                # Get gradients from local network using local losses
+                local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+                self.gradients = tf.gradients(self.loss, local_vars)
+                self.var_norms = tf.global_norm(local_vars)
+                grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, 40.0)
 
-        # Apply local gradients to global network
-        global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-        self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
+                # Apply local gradients to global network
+                global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
+                self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
 
         # # Create summaries to visualize weights
         # for var in tf.trainable_variables():
@@ -106,13 +106,11 @@ class AC_Network():
         #     tf.summary.histogram(var.name + '/gradient', grad)
         # Create some wrappers for simplicity
 
-
     def conv2d(self, x, W, b, strides=1, padding='SAME'):
         # Conv2D wrapper, with bias and relu activation
         x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding=padding)
         x = tf.nn.bias_add(x, b)
         return tf.nn.relu(x)
-
 
     def maxpool2d(self, x, k=2, padding='SAME'):
         # MaxPool2D wrapper
@@ -140,7 +138,7 @@ class AC_Network():
           An initializer for a weight matrix.
         """
         return self.variance_scaling_initializer(factor=1.0, mode='FAN_AVG',
-                                            uniform=uniform, seed=seed, dtype=dtype)
+                                                 uniform=uniform, seed=seed, dtype=dtype)
 
     def variance_scaling_initializer(self, factor=2.0, mode='FAN_IN', uniform=False,
                                      seed=None, dtype=dtypes.float32):

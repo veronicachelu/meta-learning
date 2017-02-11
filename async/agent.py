@@ -8,12 +8,15 @@ from random import choice
 from utils import update_target_graph, process_frame, discount
 from atari_environment import AtariEnvironment
 import flags
-
+from threading import Thread, Lock
 FLAGS = tf.app.flags.FLAGS
 
 
+# Starting threads
+main_lock = Lock()
+
 class Worker():
-    def __init__(self, game, name, trainer, model_path, global_episodes):
+    def __init__(self, game, name, nb_actions, trainer, model_path, global_episodes):
         self.name = "worker_" + str(name)
         self.number = name
         self.model_path = model_path
@@ -27,14 +30,12 @@ class Worker():
         self.summary = tf.Summary()
 
         # Create the local copy of the network and the tensorflow op to copy global paramters to local network
-        self.local_AC = AC_Network(self.name, trainer, self.summary)
+        self.local_AC = AC_Network(self.name, nb_actions, trainer)
         self.update_local_ops = update_target_graph('global', self.name)
 
-        self.actions = np.zeros([FLAGS.nb_actions])
+        self.actions = np.zeros([nb_actions])
         # End Doom set-up
-        self.env = AtariEnvironment(gym_env=game, resized_width=FLAGS.resized_width,
-                                    resized_height=FLAGS.resized_height,
-                                    agent_history_length=FLAGS.agent_history_length)
+        self.env = game
 
     def train(self, rollout, sess, bootstrap_value):
         rollout = np.array(rollout)
@@ -101,7 +102,9 @@ class Worker():
 
                     s1, r, d, info = self.env.step(a)
                     if FLAGS.show_training:
-                        self.env.env.render()
+                        if episode_step_count % 10 == 0:
+                            with main_lock:
+                                self.env.env.render()
                     r = np.clip(r, -1, 1)
 
                     if d == False:

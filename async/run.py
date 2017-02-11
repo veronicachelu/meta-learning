@@ -1,4 +1,7 @@
 import threading
+import pyglet
+import gym
+from gym.envs.classic_control import rendering
 import multiprocessing
 import numpy as np
 import tensorflow as tf
@@ -11,7 +14,7 @@ from atari_environment import AtariEnvironment
 from network import AC_Network
 from agent import Worker
 import flags
-import gym
+
 
 FLAGS = tf.app.flags.FLAGS
 # gamma = .99 # discount rate for advantage estimation and reward discounting
@@ -32,15 +35,22 @@ if not os.path.exists(FLAGS.frames_dir):
 with tf.device("/cpu:0"):
     global_episodes = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
     trainer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-    master_network = AC_Network('global', None)  # Generate global network
+
     num_workers = FLAGS.nb_concurrent  # multiprocessing.cpu_count()  # Set workers ot number of available CPU threads
     workers = []
     envs = []
     # Create worker classes
     for i in range(num_workers):
-        envs.append(gym.make(FLAGS.game))
+        this_env = AtariEnvironment(gym_env=gym.make(FLAGS.game), resized_width=FLAGS.resized_width,
+                                    resized_height=FLAGS.resized_height,
+                                    agent_history_length=FLAGS.agent_history_length)
+        envs.append(this_env)
+    nb_actions = len(envs[0].gym_actions)
+
+    master_network = AC_Network('global', nb_actions, None)  # Generate global network
+
     for i in range(num_workers):
-        workers.append(Worker(envs[i], i, trainer, FLAGS.checkpoint_dir, global_episodes))
+        workers.append(Worker(envs[i], i, nb_actions, trainer, FLAGS.checkpoint_dir, global_episodes))
     saver = tf.train.Saver(max_to_keep=5)
 
 with tf.Session() as sess:
