@@ -73,7 +73,7 @@ def set_image_bandit(values, probs, selection, trial):
     return bandit_image
 
 
-def set_image_bandit(values, target_arm, selection, trial):
+def set_image_bandit_11_arms(values, target_arm, selection, trial):
     bandit_image = Image.open('./resources/11arms.png')
     draw = ImageDraw.Draw(bandit_image)
     font = ImageFont.truetype("./resources/FreeSans.ttf", 24)
