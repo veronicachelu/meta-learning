@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'medium',
+tf.app.flags.DEFINE_string('game', 'restless',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('GPU', "0",
                            """The GPU device to run on""")

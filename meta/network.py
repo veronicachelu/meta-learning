@@ -16,7 +16,7 @@ class AC_Network():
             self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32)
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32)
 
-            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep])
+            hidden = tf.concat(1, [self.prev_actions_onehot, self.timestep])
 
             # Recurrent network for temporal dependencies
             lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)

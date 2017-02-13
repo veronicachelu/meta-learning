@@ -44,6 +44,19 @@ class dependent_bandit():
             done = False
         return reward, done, self.timestep
 
+    def pullArmForTest(self):
+        # Get a random number.
+        optimal_action = np.argmax(self.bandit)
+        bandit = self.bandit[optimal_action]
+        result = np.random.uniform()
+        if result < bandit:
+            # return a positive reward.
+            optimal_reward = 1
+        else:
+            # return a negative reward.
+            optimal_reward = 0
+        return optimal_reward
+
 # env = dependent_bandit("restless")
 # print("The probabilities for the arm are: {}".format(env.bandit))
 # print("pulling arm 0")

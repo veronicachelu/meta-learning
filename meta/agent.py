@@ -4,6 +4,7 @@ from utils import update_target_graph, discount, set_image_bandit, make_gif
 from network import AC_Network
 import flags
 from threading import Thread, Lock
+import operator
 FLAGS = tf.app.flags.FLAGS
 
 class Worker():
@@ -15,6 +16,7 @@ class Worker():
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
         self.episode_rewards = []
+        self.episode_optimal_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter("train_" + str(self.number))
@@ -72,6 +74,7 @@ class Worker():
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
                 episode_buffer = []
+                episode_rewards_for_optimal_arm = 0
                 episode_values = []
                 episode_frames = []
                 episode_reward = [0, 0]
@@ -98,6 +101,7 @@ class Worker():
 
                     rnn_state = rnn_state_new
                     r, d, t = self.env.pullArm(a)
+                    episode_rewards_for_optimal_arm += self.env.pullArmForTest()
                     episode_buffer.append([a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])
                     episode_frames.append(set_image_bandit(episode_reward, self.env.bandit, a, t))
@@ -106,12 +110,19 @@ class Worker():
                     episode_step_count += 1
 
                 self.episode_rewards.append(np.sum(episode_reward))
+                self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 # Update the network using the experience buffer at the end of the episode.
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     v_l, p_l, e_l, g_n, v_n = self.train(episode_buffer, sess, 0.0)
+
+                if not FLAGS.train and episode_count == 150:
+                    episode_regret = list(map(operator.sub, self.episode_optimal_rewards, self.episode_rewards))
+                    mean_regret = np.mean(episode_regret[-150:])
+                    print("Mean regret for the model is {}".format(mean_regret))
+                    return 1
 
                 # Periodically save gifs of episodes, model parameters, and summary statistics.
                 if episode_count % 50 == 0 and episode_count != 0:
