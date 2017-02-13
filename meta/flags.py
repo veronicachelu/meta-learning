@@ -5,9 +5,9 @@ tf.app.flags.DEFINE_string('game', 'independent',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('GPU', "0",
                            """The GPU device to run on""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', False,
+tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('show_training', True,
                             """Show windows with workers training""")
