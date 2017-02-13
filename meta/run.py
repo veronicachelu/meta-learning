@@ -46,6 +46,7 @@ with tf.Session() as sess:
     if FLAGS.resume == True:
         print('Loading Model...')
         ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+        print("ckpt.model_checkpoint_path: {}".format(ckpt.model_checkpoint_path))
         saver.restore(sess, ckpt.model_checkpoint_path)
     else:
         sess.run(tf.global_variables_initializer())

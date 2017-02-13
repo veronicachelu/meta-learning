@@ -1,13 +1,13 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'restless',
+tf.app.flags.DEFINE_string('game', 'independent',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('GPU', "0",
                            """The GPU device to run on""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', True,
+tf.app.flags.DEFINE_boolean('train', False,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('show_training', True,
                             """Show windows with workers training""")
@@ -29,3 +29,5 @@ tf.app.flags.DEFINE_integer('resized_width', 84, """Start from epoch""")
 tf.app.flags.DEFINE_integer('resized_height', 84, """Start from epoch""")
 tf.app.flags.DEFINE_float('gamma', 0.99, """Learning rate""")
 tf.app.flags.DEFINE_float('lr', 0.00001, """Learning rate""")
+
+tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")

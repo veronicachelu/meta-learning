@@ -16,7 +16,11 @@ class Worker():
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
         self.episode_rewards = []
-        self.episode_optimal_rewards = []
+
+        if not FLAGS.train:
+            self.episode_optimal_rewards = []
+            self.episodes_suboptimal_arms = []
+
         self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter("train_" + str(self.number))
@@ -69,12 +73,17 @@ class Worker():
     def work(self, sess, coord, saver):
         episode_count = sess.run(self.global_episodes)
         total_steps = 0
+        if not FLAGS.train:
+            test_episode_count = 0
         print("Starting worker " + str(self.number))
         with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
                 sess.run(self.update_local_ops)
                 episode_buffer = []
-                episode_rewards_for_optimal_arm = 0
+                if not FLAGS.train:
+                    print("Episode {}".format(test_episode_count))
+                    episode_rewards_for_optimal_arm = 0
+                    episode_suboptimal_arm = 0
                 episode_values = []
                 episode_frames = []
                 episode_reward = [0, 0]
@@ -101,7 +110,11 @@ class Worker():
 
                     rnn_state = rnn_state_new
                     r, d, t = self.env.pullArm(a)
-                    episode_rewards_for_optimal_arm += self.env.pullArmForTest()
+                    if not FLAGS.train:
+                        episode_rewards_for_optimal_arm += self.env.pullArmForTest()
+                        optimal_action = self.env.get_optimal_arm()
+                        if optimal_action != a:
+                            episode_suboptimal_arm += 1
                     episode_buffer.append([a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])
                     episode_frames.append(set_image_bandit(episode_reward, self.env.bandit, a, t))
@@ -110,7 +123,13 @@ class Worker():
                     episode_step_count += 1
 
                 self.episode_rewards.append(np.sum(episode_reward))
-                self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
+                if not FLAGS.train:
+                    self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
+                    self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
+                    print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward), episode_rewards_for_optimal_arm))
+                    print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
+                    print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
+
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
@@ -118,14 +137,15 @@ class Worker():
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     v_l, p_l, e_l, g_n, v_n = self.train(episode_buffer, sess, 0.0)
 
-                if not FLAGS.train and episode_count == 150:
-                    episode_regret = list(map(operator.sub, self.episode_optimal_rewards, self.episode_rewards))
-                    mean_regret = np.mean(episode_regret[-150:])
+                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
+                    episode_regret = [max(o - r, 0) for (o, r) in zip(self.episode_optimal_rewards, self.episode_rewards)]
+                    mean_regret = np.mean(episode_regret)
                     print("Mean regret for the model is {}".format(mean_regret))
+                    print("Regret in terms of suboptimal arms is {}".format(np.mean(self.episodes_suboptimal_arms)))
                     return 1
 
                 # Periodically save gifs of episodes, model parameters, and summary statistics.
-                if episode_count % 50 == 0 and episode_count != 0:
+                if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk')
                         print("Saved Model")
@@ -153,4 +173,6 @@ class Worker():
                     self.summary_writer.flush()
                 if self.name == 'worker_0':
                     sess.run(self.increment)
+                if not FLAGS.train:
+                    test_episode_count += 1
                 episode_count += 1
