@@ -73,6 +73,28 @@ def set_image_bandit(values, probs, selection, trial):
     return bandit_image
 
 
+def set_image_bandit(values, target_arm, selection, trial):
+    bandit_image = Image.open('./resources/11arms.png')
+    draw = ImageDraw.Draw(bandit_image)
+    font = ImageFont.truetype("./resources/FreeSans.ttf", 24)
+
+    delta = 90
+    for i in range(11):
+        if target_arm == i:
+            draw.text((40 + i * delta, 10), "R=5", (0, 0, 0), font=font)
+        elif i == 10:
+            draw.text((40 + i * delta, 10), "[Inform]R={}".format(target_arm / 10), (0, 0, 0), font=font)
+        else:
+            draw.text((40 + i * delta, 10), "R=1", (0, 0, 0), font=font)
+    bandit_image = np.array(bandit_image)
+    delta = 100
+    for i in range(11):
+        # bandit_image[115:115 + floor(values[0] * 2.5), 20:75, :] = [0, 255.0, 0]
+        bandit_image[115:115 + floor(values[1] * 2.5), (20 + delta * i):(75 + delta * i), :] = [0, 255.0, 0]
+    bandit_image[101:107, 10 + (selection * 95):10 + (selection * 95) + 80, :] = [80.0, 80.0, 225.0]
+    return bandit_image
+
+
 def set_image_context(correct, observation, values, selection, trial):
     obs = observation * 225.0
     obs_a = obs[:, 0:1, :]

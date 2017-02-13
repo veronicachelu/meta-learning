@@ -17,9 +17,9 @@ class Worker():
         self.increment = self.global_episodes.assign_add(1)
         self.episode_rewards = []
 
-        if not FLAGS.train:
-            self.episode_optimal_rewards = []
-            self.episodes_suboptimal_arms = []
+        #if not FLAGS.train:
+        self.episode_optimal_rewards = []
+        self.episodes_suboptimal_arms = []
 
         self.episode_lengths = []
         self.episode_mean_values = []
@@ -82,11 +82,11 @@ class Worker():
                 episode_buffer = []
                 if not FLAGS.train:
                     print("Episode {}".format(test_episode_count))
-                    episode_rewards_for_optimal_arm = 0
-                    episode_suboptimal_arm = 0
+                episode_rewards_for_optimal_arm = 0
+                episode_suboptimal_arm = 0
                 episode_values = []
                 episode_frames = []
-                episode_reward = [0, 0]
+                episode_reward = [0 for i in range(FLAGS.nb_actions)]
                 episode_step_count = 0
                 d = False
                 r = 0
@@ -110,22 +110,26 @@ class Worker():
 
                     rnn_state = rnn_state_new
                     r, d, t = self.env.pullArm(a)
-                    if not FLAGS.train:
-                        episode_rewards_for_optimal_arm += self.env.pullArmForTest()
-                        optimal_action = self.env.get_optimal_arm()
-                        if optimal_action != a:
-                            episode_suboptimal_arm += 1
+                    #if not FLAGS.train:
+                    episode_rewards_for_optimal_arm += self.env.pullArmForTest()
+                    optimal_action = self.env.get_optimal_arm()
+                    if optimal_action != a:
+                        episode_suboptimal_arm += 1
                     episode_buffer.append([a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])
-                    episode_frames.append(set_image_bandit(episode_reward, self.env.bandit, a, t))
+                    if not FLAGS.game == '11arms':
+                        episode_frames.append(set_image_bandit(episode_reward, self.env.get_bandit(), a, t))
+                    else:
+                        episode_frames.append(set_image_bandit(episode_reward, self.env.get_optimal_arm(), a, t))
                     episode_reward[a] += r
                     total_steps += 1
                     episode_step_count += 1
 
                 self.episode_rewards.append(np.sum(episode_reward))
+
+                self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
+                self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
                 if not FLAGS.train:
-                    self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
-                    self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
                     print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward), episode_rewards_for_optimal_arm))
                     print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
                     print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
@@ -137,11 +141,15 @@ class Worker():
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     v_l, p_l, e_l, g_n, v_n = self.train(episode_buffer, sess, 0.0)
 
-                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
-                    episode_regret = [max(o - r, 0) for (o, r) in zip(self.episode_optimal_rewards, self.episode_rewards)]
+                if episode_count % FLAGS.nb_test_episodes:
+                    episode_regret = [max(o - r, 0) for (o, r) in
+                                      zip(self.episode_optimal_rewards[-150:], self.episode_rewards[-150:])]
                     mean_regret = np.mean(episode_regret)
+                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-150:])
+
+                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
                     print("Mean regret for the model is {}".format(mean_regret))
-                    print("Regret in terms of suboptimal arms is {}".format(np.mean(self.episodes_suboptimal_arms)))
+                    print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
                 # Periodically save gifs of episodes, model parameters, and summary statistics.
@@ -162,7 +170,11 @@ class Worker():
                     summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
+
                     if FLAGS.train == True:
+                        if episode_count % FLAGS.nb_test_episodes:
+                            summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
+                            summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
                         summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
                         summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
                         summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))

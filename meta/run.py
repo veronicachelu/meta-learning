@@ -11,7 +11,7 @@ from time import time
 from network import AC_Network
 from agent import Worker
 import flags
-from envs.dependent_bandits import dependent_bandit
+from envs.dependent_bandits import dependent_bandit, eleven_arms
 
 
 FLAGS = tf.app.flags.FLAGS
@@ -34,7 +34,10 @@ with tf.device("/cpu:0"):
     workers = []
     envs = []
     for i in range(num_workers):
-        this_env = dependent_bandit(FLAGS.game)
+        if FLAGS.game == '11arms':
+            this_env = eleven_arms()
+        else:
+            this_env = dependent_bandit(FLAGS.game)
         envs.append(this_env)
     # Create worker classes
     for i in range(num_workers):

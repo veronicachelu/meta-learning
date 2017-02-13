@@ -60,18 +60,19 @@ class dependent_bandit():
     def get_optimal_arm(self):
         return np.argmax(self.bandit)
 
+    def get_bandit(self):
+        return self.bandit
 
-class dependent_bandit2():
+
+
+class eleven_arms():
     def __init__(self):
         self.num_actions = 11
         self.reset()
 
-    def set_restless_prob(self):
-        self.bandit = np.array([self.restless_list[self.timestep], 1 - self.restless_list[self.timestep]])
-
     def reset(self):
         self.timestep = 0
-        self.bandit_target_arm = np.random.choice([range(10)])
+        self.bandit_target_arm = np.random.choice(range(10))
 
     def pullArm(self, action):
         # Get a random number.
