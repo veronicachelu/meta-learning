@@ -4,7 +4,10 @@
 __pycache__/
 
 *$py.class
-
+*.meta
+*.gif
+*.cptk.*
+*.index
 # C extensions
 *.so
 *.local
@@ -111,3 +114,12 @@ config.pyc
 dqn/
 network.pyc
 summaries/
+.DS_Store
+meta/De/
+meta/Di/
+meta/Dm/
+meta/Drest/
+meta/Du/
+meta/resources/11arms.png
+meta/resources/11arms.psd
+meta/results/
