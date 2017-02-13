@@ -57,6 +57,47 @@ class dependent_bandit():
             optimal_reward = 0
         return optimal_reward
 
+    def get_optimal_arm(self):
+        return np.argmax(self.bandit)
+
+
+class dependent_bandit2():
+    def __init__(self):
+        self.num_actions = 11
+        self.reset()
+
+    def set_restless_prob(self):
+        self.bandit = np.array([self.restless_list[self.timestep], 1 - self.restless_list[self.timestep]])
+
+    def reset(self):
+        self.timestep = 0
+        self.bandit_target_arm = np.random.choice([range(10)])
+
+    def pullArm(self, action):
+        # Get a random number.
+        self.timestep += 1
+        if action == 10:
+            #pull informative arm
+            reward = self.bandit_target_arm / 10
+        elif action == self.bandit_target_arm:
+            reward = 5
+        else:
+            reward = 1
+
+        if self.timestep > 99:
+            done = True
+        else:
+            done = False
+        return reward, done, self.timestep
+
+    def pullArmForTest(self):
+        # Get a random number.
+        return 5
+
+    def get_optimal_arm(self):
+        return self.bandit_target_arm
+
+
 # env = dependent_bandit("restless")
 # print("The probabilities for the arm are: {}".format(env.bandit))
 # print("pulling arm 0")
