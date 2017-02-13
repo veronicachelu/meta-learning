@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from utils import update_target_graph, discount, set_image_bandit, make_gif
+from utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
 from network import AC_Network
 import flags
 from threading import Thread, Lock
@@ -120,7 +120,7 @@ class Worker():
                     if not FLAGS.game == '11arms':
                         episode_frames.append(set_image_bandit(episode_reward, self.env.get_bandit(), a, t))
                     else:
-                        episode_frames.append(set_image_bandit(episode_reward, self.env.get_optimal_arm(), a, t))
+                        episode_frames.append(set_image_bandit_11_arms(episode_reward, self.env.get_optimal_arm(), a, t))
                     episode_reward[a] += r
                     total_steps += 1
                     episode_step_count += 1
