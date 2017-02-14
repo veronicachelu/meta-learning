@@ -8,25 +8,25 @@ from tensorflow.python.ops import random_ops
 FLAGS = tf.app.flags.FLAGS
 
 class AC_Network():
-    def __init__(self, scope, trainer):
+    def __init__(self, scope, trainer, global_step=None):
         with tf.variable_scope(scope):
             # Input and visual encoding layers
-            self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-            self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32)
-            self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32)
-            self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32)
+            self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
+            self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
+            self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
+            self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32, name="Prev_Actions_OneHot")
 
-            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep])
+            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep], name="Concatenated_input")
 
             # Recurrent network for temporal dependencies
             lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
             self.state_init = [c_init, h_init]
-            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
-            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
+            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
+            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
             self.state_in = (c_in, h_in)
-            rnn_in = tf.expand_dims(hidden, [0])
+            rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
             step_size = tf.shape(self.prev_rewards)[:1]
             state_in = tf.nn.rnn_cell.LSTMStateTuple(c_in, h_in)
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
@@ -34,21 +34,21 @@ class AC_Network():
                 time_major=False)
             lstm_c, lstm_h = lstm_state
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-            rnn_out = tf.reshape(lstm_outputs, [-1, 48])
+            rnn_out = tf.reshape(lstm_outputs, [-1, 48], name="RNN_out")
 
-            self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
-            self.actions_onehot = tf.one_hot(self.actions, FLAGS.nb_actions, dtype=tf.float32)
+            self.actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
+            self.actions_onehot = tf.one_hot(self.actions, FLAGS.nb_actions, dtype=tf.float32, name="Actions_Onehot")
 
             fc_pol_w = tf.get_variable("FC_Pol_W", shape=[48, FLAGS.nb_actions],
                                     initializer=normalized_columns_initializer(0.01))
             # Output layers for policy and value estimations
-            self.policy = tf.matmul(rnn_out, fc_pol_w)
-            self.policy = tf.nn.softmax(self.policy)
+            self.policy = tf.matmul(rnn_out, fc_pol_w, name="Policy")
+            self.policy = tf.nn.softmax(self.policy, name="Policy_soft")
 
             fc_value_w = tf.get_variable("FC_Value_W", shape=[48, 1],
                                        initializer=normalized_columns_initializer(1.0))
 
-            self.value = tf.matmul(rnn_out, fc_value_w)
+            self.value = tf.matmul(rnn_out, fc_value_w, name="Value")
 
 
             # Only the worker network need ops for loss functions and gradient updating.
@@ -62,13 +62,26 @@ class AC_Network():
                 self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy + 1e-7))
                 self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs + 1e-7) * self.advantages)
-                self.loss = 0.05 * self.value_loss + self.policy_loss - self.entropy * 0.05
+                starter_beta_e = 1.0
+                end_beta_e = 0.1
+                decay_steps = 20000
+                self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
+                                                          decay_steps, end_beta_e,
+                                                          power=0.5)
+
+                self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * self.beta_e
 
                 # Get gradients from local network using local losses
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
                 self.gradients = tf.gradients(self.loss, local_vars)
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, 50.0)
+
+                for grad, weight in zip(grads, local_vars):
+                    tf.summary.histogram(weight.name + '_grad', grad)
+                    tf.summary.histogram(weight.name, weight)
+
+                self.merged_summary = tf.summary.merge_all()
 
                 # Apply local gradients to global network
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')

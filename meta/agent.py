@@ -26,7 +26,7 @@ class Worker():
         self.summary_writer = tf.summary.FileWriter("train_" + str(self.number))
 
         # Create the local copy of the network and the tensorflow op to copy global paramters to local network
-        self.local_AC = AC_Network(self.name, trainer)
+        self.local_AC = AC_Network(self.name, trainer, self.global_episodes)
         self.update_local_ops = update_target_graph('global', self.name)
         self.env = game
 
@@ -61,14 +61,15 @@ class Worker():
                      self.local_AC.advantages: advantages,
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
-        v_l, p_l, e_l, g_n, v_n, _ = sess.run([self.local_AC.value_loss,
+        v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.value_loss,
                                                self.local_AC.policy_loss,
                                                self.local_AC.entropy,
                                                self.local_AC.grad_norms,
                                                self.local_AC.var_norms,
-                                               self.local_AC.apply_grads],
+                                               self.local_AC.apply_grads,
+                                               self.local_AC.merged_summary],
                                               feed_dict=feed_dict)
-        return v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n
+        return v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
     def work(self, sess, coord, saver):
         episode_count = sess.run(self.global_episodes)
@@ -139,7 +140,7 @@ class Worker():
 
                 # Update the network using the experience buffer at the end of the episode.
                 if len(episode_buffer) != 0 and FLAGS.train == True:
-                    v_l, p_l, e_l, g_n, v_n = self.train(episode_buffer, sess, 0.0)
+                    v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
 
                 if episode_count % FLAGS.nb_test_episodes:
                     episode_regret = [max(o - r, 0) for (o, r) in
@@ -180,6 +181,38 @@ class Worker():
                         summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
                         summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
                         summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                        summaries = tf.Summary().FromString(ms)
+                        sub_summaries_dict = {}
+                        for value in summaries.value:
+                            value_field = value.WhichOneof('value')
+                            value_ifo = sub_summaries_dict.setdefault(value.tag,
+                                                                      {'value_field': None, 'values': []})
+                            if not value_ifo['value_field']:
+                                value_ifo['value_field'] = value_field
+                            else:
+                                assert value_ifo['value_field'] == value_field
+                            value_ifo['values'].append(getattr(value, value_field))
+
+                        for name, value_ifo in sub_summaries_dict.items():
+                            summary_value = summary.value.add()
+                            summary_value.tag = name
+                            if value_ifo['value_field'] == 'histo':
+                                values = value_ifo['values']
+                                summary_value.histo.min = min([x.min for x in values])
+                                summary_value.histo.max = max([x.max for x in values])
+                                summary_value.histo.num = sum([x.num for x in values])
+                                summary_value.histo.sum = sum([x.sum for x in values])
+                                summary_value.histo.sum_squares = sum([x.sum_squares for x in values])
+                                # for histogram values, just take first batch for now
+                                # TODO: aggregate histograms over batches
+                                for lim in values[0].bucket_limit:
+                                    summary_value.histo.bucket_limit.append(lim)
+                                for bucket in values[0].bucket:
+                                    summary_value.histo.bucket.append(bucket)
+                            else:
+                                print(
+                                    'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
+
                     self.summary_writer.add_summary(summary, episode_count)
 
                     self.summary_writer.flush()
