@@ -74,24 +74,35 @@ def set_image_bandit(values, probs, selection, trial):
 
 
 def set_image_bandit_11_arms(values, target_arm, selection, trial):
-    bandit_image = Image.open('./resources/11arms.png')
+    bandit_image = Image.open('./resources/11arm.png')
     draw = ImageDraw.Draw(bandit_image)
     font = ImageFont.truetype("./resources/FreeSans.ttf", 24)
-
+    print("target arm is {}. Selection is {}".format(target_arm, selection))
     delta = 90
-    for i in range(11):
-        if target_arm == i:
-            draw.text((40 + i * delta, 10), "R=5", (0, 0, 0), font=font)
-        elif i == 10:
-            draw.text((40 + i * delta, 10), "[Inform]R={}".format(target_arm / 10), (0, 0, 0), font=font)
-        else:
-            draw.text((40 + i * delta, 10), "R=1", (0, 0, 0), font=font)
+    # for i in range(11):
+        # if target_arm == i:
+    draw.text((40 + 1 * delta, 10), "T", (0, 0, 0), font=font)
+        # elif i == 10:
+    draw.text((40 + 2 * delta, 10), "I {}".format(target_arm), (0, 0, 0), font=font)
+        # else:
+    draw.text((40 + 0 * delta, 10), "S", (0, 0, 0), font=font)
+    draw.text((60, 370), 'Trial: ' + str(trial), (0, 0, 0), font=font)
     bandit_image = np.array(bandit_image)
     delta = 100
     for i in range(11):
         # bandit_image[115:115 + floor(values[0] * 2.5), 20:75, :] = [0, 255.0, 0]
-        bandit_image[115:115 + floor(values[1] * 2.5), (20 + delta * i):(75 + delta * i), :] = [0, 255.0, 0]
-    bandit_image[101:107, 10 + (selection * 95):10 + (selection * 95) + 80, :] = [80.0, 80.0, 225.0]
+        if i == target_arm:
+            bandit_image[115:115 + floor(values[i]/ 5  * 2.5), (20 + delta * 1):(75 + delta * 1), :] = [0, 255.0, 0]
+        elif i == 10:
+            bandit_image[115:115 + floor(values[i]/ 5 * 2.5), (20 + delta * 2):(75 + delta * 2), :] = [0, 255.0, 0]
+        else:
+            bandit_image[115:115 + floor(values[i]/ 5 * 2.5), (20 + delta * 0):(75 + delta * 0), :] = [0, 255.0, 0]
+    if selection == target_arm:
+        bandit_image[101:107, 10 + delta * 1:10 + delta * 1 + 85, :] = [80.0, 80.0, 225.0]
+    elif selection == 10:
+        bandit_image[101:107, 10 + delta * 2:10 + delta * 2 + 85, :] = [80.0, 80.0, 225.0]
+    else:
+        bandit_image[101:107, 10 + delta * 0:10 + delta * 0 + 85, :] = [80.0, 80.0, 225.0]
     return bandit_image
 
 

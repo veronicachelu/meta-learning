@@ -72,7 +72,7 @@ class eleven_arms():
 
     def reset(self):
         self.timestep = 0
-        self.bandit_target_arm = np.random.choice(range(10))
+        self.bandit_target_arm = np.random.choice(range(11))
 
     def pullArm(self, action):
         # Get a random number.
@@ -85,7 +85,7 @@ class eleven_arms():
         else:
             reward = 1
 
-        if self.timestep > 99:
+        if self.timestep > 4:
             done = True
         else:
             done = False
