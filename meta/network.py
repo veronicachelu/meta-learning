@@ -5,7 +5,9 @@ from utils import normalized_columns_initializer
 import math
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
+
 FLAGS = tf.app.flags.FLAGS
+
 
 class AC_Network():
     def __init__(self, scope, trainer, global_step=None):
@@ -14,9 +16,11 @@ class AC_Network():
             self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
-            self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32, name="Prev_Actions_OneHot")
+            self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
+                                                  name="Prev_Actions_OneHot")
 
-            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep], name="Concatenated_input")
+            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep],
+                               name="Concatenated_input")
 
             # Recurrent network for temporal dependencies
             lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)
@@ -40,16 +44,15 @@ class AC_Network():
             self.actions_onehot = tf.one_hot(self.actions, FLAGS.nb_actions, dtype=tf.float32, name="Actions_Onehot")
 
             fc_pol_w = tf.get_variable("FC_Pol_W", shape=[48, FLAGS.nb_actions],
-                                    initializer=normalized_columns_initializer(0.01))
+                                       initializer=normalized_columns_initializer(0.01))
             # Output layers for policy and value estimations
             self.policy = tf.matmul(rnn_out, fc_pol_w, name="Policy")
             self.policy = tf.nn.softmax(self.policy, name="Policy_soft")
 
             fc_value_w = tf.get_variable("FC_Value_W", shape=[48, 1],
-                                       initializer=normalized_columns_initializer(1.0))
+                                         initializer=normalized_columns_initializer(1.0))
 
             self.value = tf.matmul(rnn_out, fc_value_w, name="Value")
-
 
             # Only the worker network need ops for loss functions and gradient updating.
             if scope != 'global':
@@ -59,17 +62,20 @@ class AC_Network():
                 self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
                 # Loss functions
-                self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
+                self.value_loss = FLAGS.beta_v * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy + 1e-7))
-                self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs + 1e-7) * self.advantages)
+
                 starter_beta_e = 1.0
                 end_beta_e = 0.1
                 decay_steps = 20000
                 self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
-                                                          decay_steps, end_beta_e,
-                                                          power=0.5)
+                                                        decay_steps, end_beta_e,
+                                                        power=0.5)
 
-                self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * self.beta_e
+                self.policy_loss = -tf.reduce_sum(
+                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) + self.entropy * self.beta_e
+
+                self.loss = self.value_loss + self.policy_loss
 
                 # Get gradients from local network using local losses
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)

@@ -13,21 +13,43 @@ from agent import Worker
 import flags
 from envs.dependent_bandits import dependent_bandit, eleven_arms
 
-
 FLAGS = tf.app.flags.FLAGS
 
 tf.reset_default_graph()
 
 if not os.path.exists(FLAGS.checkpoint_dir):
     os.makedirs(FLAGS.checkpoint_dir)
+else:
+    if not FLAGS.resume and FLAGS.train:
+        tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
+        os.makedirs(FLAGS.checkpoint_dir)
 
 # Create a directory to save episode playback gifs to
 if not os.path.exists(FLAGS.frames_dir):
     os.makedirs(FLAGS.frames_dir)
+else:
+    if not FLAGS.resume and FLAGS.train:
+        tf.gfile.DeleteRecursively(FLAGS.frames_dir)
+        os.makedirs(FLAGS.frames_dir)
+
+# Create a directory to save episode playback gifs to
+if not os.path.exists(FLAGS.frames_test_dir):
+    os.makedirs(FLAGS.frames_test_dir)
+else:
+    if FLAGS.resume and not FLAGS.train:
+        tf.gfile.DeleteRecursively(FLAGS.frames_test_dir)
+        os.makedirs(FLAGS.frames_test_dir)
+
+if not os.path.exists(FLAGS.summaries_dir):
+    os.makedirs(FLAGS.summaries_dir)
+else:
+    if not FLAGS.resume and FLAGS.train:
+        tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
+        os.makedirs(FLAGS.summaries_dir)
 
 with tf.device("/cpu:0"):
     global_episodes = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
-    trainer = tf.train.AdamOptimizer(learning_rate=1e-3)
+    trainer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
     master_network = AC_Network('global', None)  # Generate global network
     # num_workers = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
     num_workers = 1
