@@ -7,7 +7,8 @@ from utils import update_target_graph, discount
 import flags
 
 FLAGS = tf.app.flags.FLAGS
-
+# Starting threads
+main_lock = Lock()
 
 class Worker():
     def __init__(self, game, thread_id, nb_actions, optimizer, global_step):
@@ -97,8 +98,8 @@ class Worker():
 
                     if FLAGS.show_training:
                         if episode_step_count % 10 == 0:
-                            # with main_lock:
-                            self.env.env.render()
+                            with main_lock:
+                                self.env.env.render()
 
                     r = np.clip(r, -1, 1)
 

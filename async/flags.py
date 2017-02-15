@@ -1,13 +1,13 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Breakout-v0',
+tf.app.flags.DEFINE_string('game', 'Catcher-v0',
                            """Experiment name from Atari platform""")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
-tf.app.flags.DEFINE_boolean('show_training', False,
+tf.app.flags.DEFINE_boolean('show_training', True,
                             """Show windows with workers training""")
 tf.app.flags.DEFINE_string('checkpoint_dir', './models/',
                            """Directory where to save model checkpoints.""")
