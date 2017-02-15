@@ -26,7 +26,7 @@ tf.app.flags.DEFINE_integer('agent_history_length', 4, """Number of frames that 
 tf.app.flags.DEFINE_integer('resized_width', 84, """Resized width of each frame""")
 tf.app.flags.DEFINE_integer('resized_height', 84, """Resized height of each frame""")
 tf.app.flags.DEFINE_float('gamma', 0.99, """Gamma value""")
-tf.app.flags.DEFINE_float('lr', 1e-5, """Learning rate""")
+tf.app.flags.DEFINE_float('lr', 1e-4, """Learning rate""")
 tf.app.flags.DEFINE_float('beta_v', 0.5, """Coefficient of value function loss""")
 tf.app.flags.DEFINE_float('beta_e', 0.01, """Coefficient of entropy function loss""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 40.0, """gradient_clip_value""")
