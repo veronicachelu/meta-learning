@@ -19,6 +19,7 @@ tf.app.flags.DEFINE_string('frames_test_dir', './frames_test',
                            """Directory where to write test event gifs""")
 tf.app.flags.DEFINE_integer('summary_interval', 5, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 250, """Number of episodes of interval between checkpoint saves""")
+tf.app.flags.DEFINE_integer('frames_interval', 100, """Number of episodes of interval between frames saves""")
 tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_integer('max_episode_buffer_size', 32, """Buffer size between train updates""")
 tf.app.flags.DEFINE_integer('agent_history_length', 4, """Number of frames that makes every state""")
