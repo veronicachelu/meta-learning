@@ -1,6 +1,6 @@
-import gym
 import random
-import tensorflow as tf
+
+import gym
 
 # xavier_init = tf.contrib.layers.xavier_initializer()
 

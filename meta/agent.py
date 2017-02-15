@@ -7,9 +7,9 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Worker():
-    def __init__(self, game, id, optimizer, global_step):
-        self.name = "worker_" + str(id)
-        self.id = id
+    def __init__(self, game, thread_id, optimizer, global_step):
+        self.name = "worker_" + str(thread_id)
+        self.thread_id = thread_id
         self.model_path = FLAGS.checkpoint_dir
         self.optimizer = optimizer
         self.global_episode = global_step
@@ -22,11 +22,11 @@ class Worker():
 
         self.episode_lengths = []
         self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.id))
+        self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
+        self.summary = tf.Summary()
 
-        # Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_AC = AC_Network(self.name, optimizer, self.global_episode)
-        self.update_local_vars = update_target_graph('global', self.id)
+        self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
     def train(self, rollout, sess, bootstrap_value):
@@ -71,7 +71,7 @@ class Worker():
         if not FLAGS.train:
             test_episode_count = 0
 
-        print("Starting worker " + str(self.id))
+        print("Starting worker " + str(self.thread_id))
         with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
                 if episode_count > FLAGS.max_nb_episodes_train:
@@ -167,7 +167,7 @@ class Worker():
                 if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk')
-                        print("Saved Model")
+                        print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
                     if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
                         self.images = np.array(episode_frames)
@@ -177,21 +177,21 @@ class Worker():
                     mean_reward = np.mean(self.episode_rewards[-50:])
                     mean_length = np.mean(self.episode_lengths[-50:])
                     mean_value = np.mean(self.episode_mean_values[-50:])
-                    summary = tf.Summary()
-                    summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
-                    summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
-                    summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
+
+                    self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
+                    self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+                    self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
                     if FLAGS.train:
                         if episode_count % FLAGS.nb_test_episodes:
-                            summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
-                            summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
-                        summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
-                        summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
-                        summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
-                        summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
-                        summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
-                        summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                            self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
+                            self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
+                        self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
+                        self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
+                        self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
+                        self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
+                        self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
+                        self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
                         summaries = tf.Summary().FromString(ms)
                         sub_summaries_dict = {}
                         for value in summaries.value:
@@ -205,7 +205,7 @@ class Worker():
                             value_ifo['values'].append(getattr(value, value_field))
 
                         for name, value_ifo in sub_summaries_dict.items():
-                            summary_value = summary.value.add()
+                            summary_value = self.summary.value.add()
                             summary_value.tag = name
                             if value_ifo['value_field'] == 'histo':
                                 values = value_ifo['values']
@@ -222,7 +222,7 @@ class Worker():
                                 print(
                                     'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
 
-                    self.summary_writer.add_summary(summary, episode_count)
+                    self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()
                 if self.name == 'worker_0':

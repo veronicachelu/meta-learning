@@ -8,6 +8,7 @@ from network import AC_Network
 
 FLAGS = tf.app.flags.FLAGS
 
+
 def recreate_directory_structure():
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
         tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
@@ -23,7 +24,6 @@ def recreate_directory_structure():
             tf.gfile.DeleteRecursively(FLAGS.frames_dir)
             tf.gfile.MakeDirs(FLAGS.frames_dir)
 
-    # Create a directory to save episode playback gifs to
     if not tf.gfile.Exists(FLAGS.frames_test_dir):
         tf.gfile.MakeDirs(FLAGS.frames_test_dir)
     else:
@@ -37,6 +37,7 @@ def recreate_directory_structure():
         if not FLAGS.resume and FLAGS.train:
             tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
             tf.gfile.MakeDirs(FLAGS.summaries_dir)
+
 
 def run():
     tf.reset_default_graph()

@@ -1,7 +1,6 @@
 from math import floor
 
 import numpy as np
-import scipy.misc
 import tensorflow as tf
 from PIL import Image
 from PIL import ImageDraw
