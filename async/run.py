@@ -69,7 +69,7 @@ def run():
     with tf.Session() as sess:
         coord = tf.train.Coordinator()
         if FLAGS.resume:
-            ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_path)
+            ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
             print("Loading Model from {}".format(ckpt.model_checkpoint_path))
             saver.restore(sess, ckpt.model_checkpoint_path)
         else:

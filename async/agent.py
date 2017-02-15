@@ -10,6 +10,7 @@ FLAGS = tf.app.flags.FLAGS
 # Starting threads
 main_lock = Lock()
 
+
 class Worker():
     def __init__(self, game, thread_id, nb_actions, optimizer, global_step):
         self.name = "worker_" + str(thread_id)
@@ -78,6 +79,8 @@ class Worker():
                 episode_reward = 0
                 episode_step_count = 0
                 d = False
+                # if self.name == 'worker_0':
+                #     print("Episode {}".format(episode_count))
 
                 s = self.env.get_initial_state()
                 episode_frames.append(s)
@@ -142,7 +145,8 @@ class Worker():
                     #     make_gif(images, './frames/image' + str(episode_count) + '.gif',
                     #              duration=len(images) * time_per_step, true_image=True, salience=False)
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
-                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk')
+                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
+                                   global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
                     mean_reward = np.mean(self.episode_rewards[-5:])

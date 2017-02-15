@@ -166,7 +166,8 @@ class Worker():
 
                 if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
-                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk')
+                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
+                                   global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
                     if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':

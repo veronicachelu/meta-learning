@@ -9,7 +9,7 @@ tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('show_training', True,
                             """Show windows with workers training""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './models/',
+tf.app.flags.DEFINE_string('checkpoint_dir', './models',
                            """Directory where to save model checkpoints.""")
 tf.app.flags.DEFINE_string('summaries_dir', './summaries',
                            """Directory where to write event logs""")
