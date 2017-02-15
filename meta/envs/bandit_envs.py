@@ -1,6 +1,7 @@
 import numpy as np
 
-class dependent_bandit():
+
+class TwoArms():
     def __init__(self, difficulty):
         self.num_actions = 2
         self.difficulty = difficulty
@@ -15,7 +16,7 @@ class dependent_bandit():
             variance = np.random.uniform(0, .5)
             self.restless_list = np.cumsum(np.random.uniform(-variance, variance, (150, 1)))
             self.restless_list = (self.restless_list - np.min(self.restless_list)) / (
-            np.max(self.restless_list - np.min(self.restless_list)))
+                np.max(self.restless_list - np.min(self.restless_list)))
             self.set_restless_prob()
         if self.difficulty == 'easy': bandit_prob = np.random.choice([0.9, 0.1])
         if self.difficulty == 'medium': bandit_prob = np.random.choice([0.75, 0.25])
@@ -26,17 +27,14 @@ class dependent_bandit():
         else:
             self.bandit = np.random.uniform(size=2)
 
-    def pullArm(self, action):
-        # Get a random number.
+    def pull_arm(self, action):
         if self.difficulty == 'restless': self.set_restless_prob()
         self.timestep += 1
         bandit = self.bandit[action]
         result = np.random.uniform()
         if result < bandit:
-            # return a positive reward.
             reward = 1
         else:
-            # return a negative reward.
             reward = 0
         if self.timestep > 99:
             done = True
@@ -44,16 +42,13 @@ class dependent_bandit():
             done = False
         return reward, done, self.timestep
 
-    def pullArmForTest(self):
-        # Get a random number.
+    def pull_arm_for_test(self):
         optimal_action = np.argmax(self.bandit)
         bandit = self.bandit[optimal_action]
         result = np.random.uniform()
         if result < bandit:
-            # return a positive reward.
             optimal_reward = 1
         else:
-            # return a negative reward.
             optimal_reward = 0
         return optimal_reward
 
@@ -64,8 +59,7 @@ class dependent_bandit():
         return self.bandit
 
 
-
-class eleven_arms():
+class ElevenArms():
     def __init__(self):
         self.num_actions = 11
         self.reset()
@@ -74,11 +68,10 @@ class eleven_arms():
         self.timestep = 0
         self.bandit_target_arm = np.random.choice(range(11))
 
-    def pullArm(self, action):
-        # Get a random number.
+    def pull_arm(self, action):
         self.timestep += 1
         if action == 10:
-            #pull informative arm
+            # pull informative arm
             reward = self.bandit_target_arm / 10
         elif action == self.bandit_target_arm:
             reward = 5
@@ -91,26 +84,22 @@ class eleven_arms():
             done = False
         return reward, done, self.timestep
 
-    def pullArmForTest(self):
-        # Get a random number.
+    def pull_arm_for_test(self):
         return 5
 
     def get_optimal_arm(self):
         return self.bandit_target_arm
 
-
-# env = dependent_bandit("restless")
+# env = dependent_bandit("easy")
 # print("The probabilities for the arm are: {}".format(env.bandit))
 # print("pulling arm 0")
 # for i in range(10):
-#     r, d, t = env.pullArm(0)
+#     r, d, t = env.pull_arm(0)
 #     print("The probabilities for the arm are: {}".format(env.bandit))
 #     print("reward = {}, terminated = {}, timestep = {}".format(r, d, t))
 #
 # print("pulling arm 1")
 # for i in range(10):
-#     r, d, t = env.pullArm(1)
+#     r, d, t = env.pull_arm(1)
 #     print("The probabilities for the arm are: {}".format(env.bandit))
 #     print("reward = {}, terminated = {}, timestep = {}".format(r, d, t))
-
-

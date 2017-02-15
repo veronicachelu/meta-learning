@@ -1,85 +1,82 @@
-import threading
-import multiprocessing
-import numpy as np
-import tensorflow as tf
-import tensorflow.contrib.slim as slim
 import os
-import numpy as np
+import threading
 
-from time import sleep
-from time import time
-from network import AC_Network
+import tensorflow as tf
 from agent import Worker
-import flags
 from envs.dependent_bandits import dependent_bandit, eleven_arms
+from network import AC_Network
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.reset_default_graph()
-
-if not os.path.exists(FLAGS.checkpoint_dir):
-    os.makedirs(FLAGS.checkpoint_dir)
-else:
-    if not FLAGS.resume and FLAGS.train:
-        tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
-        os.makedirs(FLAGS.checkpoint_dir)
-
-# Create a directory to save episode playback gifs to
-if not os.path.exists(FLAGS.frames_dir):
-    os.makedirs(FLAGS.frames_dir)
-else:
-    if not FLAGS.resume and FLAGS.train:
-        tf.gfile.DeleteRecursively(FLAGS.frames_dir)
-        os.makedirs(FLAGS.frames_dir)
-
-# Create a directory to save episode playback gifs to
-if not os.path.exists(FLAGS.frames_test_dir):
-    os.makedirs(FLAGS.frames_test_dir)
-else:
-    if FLAGS.resume and not FLAGS.train:
-        tf.gfile.DeleteRecursively(FLAGS.frames_test_dir)
-        os.makedirs(FLAGS.frames_test_dir)
-
-if not os.path.exists(FLAGS.summaries_dir):
-    os.makedirs(FLAGS.summaries_dir)
-else:
-    if not FLAGS.resume and FLAGS.train:
-        tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
-        os.makedirs(FLAGS.summaries_dir)
-
-with tf.device("/cpu:0"):
-    global_episodes = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
-    trainer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-    master_network = AC_Network('global', None)  # Generate global network
-    # num_workers = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
-    num_workers = 1
-    workers = []
-    envs = []
-    for i in range(num_workers):
-        if FLAGS.game == '11arms':
-            this_env = eleven_arms()
-        else:
-            this_env = dependent_bandit(FLAGS.game)
-        envs.append(this_env)
-    # Create worker classes
-    for i in range(num_workers):
-        workers.append(Worker(envs[i], i, trainer, global_episodes))
-    saver = tf.train.Saver(max_to_keep=5)
-
-with tf.Session() as sess:
-    coord = tf.train.Coordinator()
-    if FLAGS.resume == True:
-        print('Loading Model...')
-        ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
-        print("ckpt.model_checkpoint_path: {}".format(ckpt.model_checkpoint_path))
-        saver.restore(sess, ckpt.model_checkpoint_path)
+def recreate_directory_structure():
+    if not tf.gfile.Exists(FLAGS.checkpoint_dir):
+        tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
     else:
-        sess.run(tf.global_variables_initializer())
+        if not FLAGS.resume and FLAGS.train:
+            tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
+            tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
 
-    worker_threads = []
-    for worker in workers:
-        worker_work = lambda: worker.work(sess, coord, saver)
-        thread = threading.Thread(target=(worker_work))
-        thread.start()
-        worker_threads.append(thread)
-    coord.join(worker_threads)
+    if not tf.gfile.Exists(FLAGS.frames_dir):
+        tf.gfile.MakeDirs(FLAGS.frames_dir)
+    else:
+        if not FLAGS.resume and FLAGS.train:
+            tf.gfile.DeleteRecursively(FLAGS.frames_dir)
+            tf.gfile.MakeDirs(FLAGS.frames_dir)
+
+    # Create a directory to save episode playback gifs to
+    if not tf.gfile.Exists(FLAGS.frames_test_dir):
+        tf.gfile.MakeDirs(FLAGS.frames_test_dir)
+    else:
+        if FLAGS.resume and not FLAGS.train:
+            tf.gfile.DeleteRecursively(FLAGS.frames_test_dir)
+            tf.gfile.MakeDirs(FLAGS.frames_test_dir)
+
+    if not tf.gfile.Exists(FLAGS.summaries_dir):
+        tf.gfile.MakeDirs(FLAGS.summaries_dir)
+    else:
+        if not FLAGS.resume and FLAGS.train:
+            tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
+            tf.gfile.MakeDirs(FLAGS.summaries_dir)
+
+def run():
+    tf.reset_default_graph()
+
+    with tf.device("/cpu:0"):
+        global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
+        optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
+        global_network = AC_Network('global', None)
+
+        num_workers = 1
+        workers = []
+        envs = []
+        for i in range(num_workers):
+            if FLAGS.game == '11arms':
+                this_env = eleven_arms()
+            else:
+                this_env = dependent_bandit(FLAGS.game)
+            envs.append(this_env)
+
+        for i in range(num_workers):
+            workers.append(Worker(envs[i], i, optimizer, global_step))
+        saver = tf.train.Saver(max_to_keep=5)
+
+    with tf.Session() as sess:
+        coord = tf.train.Coordinator()
+        if FLAGS.resume:
+            ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+            print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+            saver.restore(sess, ckpt.model_checkpoint_path)
+        else:
+            sess.run(tf.global_variables_initializer())
+
+        worker_threads = []
+        for worker in workers:
+            worker_play = lambda: worker.play(sess, coord, saver)
+            thread = threading.Thread(target=(worker_play))
+            thread.start()
+            worker_threads.append(thread)
+        coord.join(worker_threads)
+
+
+if __name__ == '__main__':
+    run()
