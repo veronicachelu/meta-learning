@@ -85,11 +85,12 @@ class AC_Network():
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
+                self.worker_summaries = []
                 for grad, weight in zip(grads, local_vars):
-                    tf.summary.histogram(weight.name + '_grad', grad)
-                    tf.summary.histogram(weight.name, weight)
+                    self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
+                    self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
 
-                self.merged_summary = tf.summary.merge_all()
+                self.merged_summary = tf.summary.merge(self.worker_summaries)
 
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
                 self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))

@@ -5,7 +5,9 @@ import tensorflow as tf
 from network import AC_Network
 from utils import update_target_graph, discount
 import flags
+
 FLAGS = tf.app.flags.FLAGS
+
 
 class Worker():
     def __init__(self, game, thread_id, nb_actions, optimizer, global_step):
@@ -49,15 +51,16 @@ class Worker():
                      self.local_AC.advantages: advantages,
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
-        l, v_l, p_l, e_l, g_n, v_n, _ = sess.run([self.local_AC.loss,
-                                                  self.local_AC.value_loss,
+        l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
+                                                      self.local_AC.value_loss,
                                                       self.local_AC.policy_loss,
                                                       self.local_AC.entropy,
                                                       self.local_AC.grad_norms,
                                                       self.local_AC.var_norms,
-                                                      self.local_AC.apply_grads],
+                                                      self.local_AC.apply_grads,
+                                                      self.local_AC.merged_summary],
                                                      feed_dict=feed_dict)
-        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n
+        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
@@ -95,7 +98,7 @@ class Worker():
                     if FLAGS.show_training:
                         if episode_step_count % 10 == 0:
                             # with main_lock:
-                                self.env.env.render()
+                            self.env.env.render()
 
                     r = np.clip(r, -1, 1)
 
@@ -118,7 +121,7 @@ class Worker():
                                      self.local_AC.state_in[1]: rnn_state[1]}
                         v1 = sess.run(self.local_AC.value,
                                       feed_dict=feed_dict)[0, 0]
-                        l, v_l, p_l, e_l, g_n, v_n = self.train(episode_buffer, sess, v1)
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, v1)
                         episode_buffer = []
                         sess.run(self.update_local_ops)
                     if d:
@@ -129,7 +132,7 @@ class Worker():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0:
-                    l, v_l, p_l, e_l, g_n, v_n = self.train(episode_buffer, sess, 0.0)
+                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
 
                 if FLAGS.train and episode_count % 5 == 0 and episode_count != 0:
                     # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
@@ -157,35 +160,35 @@ class Worker():
                         self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
                         self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
 
-                        # summaries = tf.Summary().FromString(ms)
-                        # sub_summaries_dict = {}
-                        # for value in summaries.value:
-                        #     value_field = value.WhichOneof('value')
-                        #     value_ifo = sub_summaries_dict.setdefault(value.tag,
-                        #                                               {'value_field': None, 'values': []})
-                        #     if not value_ifo['value_field']:
-                        #         value_ifo['value_field'] = value_field
-                        #     else:
-                        #         assert value_ifo['value_field'] == value_field
-                        #     value_ifo['values'].append(getattr(value, value_field))
-                        #
-                        # for name, value_ifo in sub_summaries_dict.items():
-                        #     summary_value = self.summary.value.add()
-                        #     summary_value.tag = name
-                        #     if value_ifo['value_field'] == 'histo':
-                        #         values = value_ifo['values']
-                        #         summary_value.histo.min = min([x.min for x in values])
-                        #         summary_value.histo.max = max([x.max for x in values])
-                        #         summary_value.histo.num = sum([x.num for x in values])
-                        #         summary_value.histo.sum = sum([x.sum for x in values])
-                        #         summary_value.histo.sum_squares = sum([x.sum_squares for x in values])
-                        #         for lim in values[0].bucket_limit:
-                        #             summary_value.histo.bucket_limit.append(lim)
-                        #         for bucket in values[0].bucket:
-                        #             summary_value.histo.bucket.append(bucket)
-                        #     else:
-                        #         print(
-                        #             'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
+                        summaries = tf.Summary().FromString(ms)
+                        sub_summaries_dict = {}
+                        for value in summaries.value:
+                            value_field = value.WhichOneof('value')
+                            value_ifo = sub_summaries_dict.setdefault(value.tag,
+                                                                      {'value_field': None, 'values': []})
+                            if not value_ifo['value_field']:
+                                value_ifo['value_field'] = value_field
+                            else:
+                                assert value_ifo['value_field'] == value_field
+                            value_ifo['values'].append(getattr(value, value_field))
+
+                        for name, value_ifo in sub_summaries_dict.items():
+                            summary_value = self.summary.value.add()
+                            summary_value.tag = name
+                            if value_ifo['value_field'] == 'histo':
+                                values = value_ifo['values']
+                                summary_value.histo.min = min([x.min for x in values])
+                                summary_value.histo.max = max([x.max for x in values])
+                                summary_value.histo.num = sum([x.num for x in values])
+                                summary_value.histo.sum = sum([x.sum for x in values])
+                                summary_value.histo.sum_squares = sum([x.sum_squares for x in values])
+                                for lim in values[0].bucket_limit:
+                                    summary_value.histo.bucket_limit.append(lim)
+                                for bucket in values[0].bucket:
+                                    summary_value.histo.bucket.append(bucket)
+                            else:
+                                print(
+                                    'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
 
                     self.summary_writer.add_summary(self.summary, episode_count)
 
