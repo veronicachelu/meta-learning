@@ -71,7 +71,7 @@ class AC_Network():
                                                         power=0.5)
 
                 self.policy_loss = -tf.reduce_sum(
-                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) + self.entropy * self.beta_e
+                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) - self.entropy * self.beta_e
 
                 self.loss = self.value_loss + self.policy_loss
 

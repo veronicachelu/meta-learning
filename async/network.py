@@ -78,7 +78,7 @@ class AC_Network():
                 self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
                 self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs) * self.advantages)
-                self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss + self.entropy * FLAGS.beta_e
+                self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
 
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
                 self.gradients = tf.gradients(self.loss, local_vars)
