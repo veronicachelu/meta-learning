@@ -64,7 +64,7 @@ class AC_Network():
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy + 1e-7))
 
                 starter_beta_e = 1.0
-                end_beta_e = 0.1
+                end_beta_e = 0.0
                 decay_steps = 20000
                 self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
                                                         decay_steps, end_beta_e,
