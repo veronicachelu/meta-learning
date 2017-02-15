@@ -1,11 +1,12 @@
-import os
 import threading
 
 import gym
+import gym_ple
 import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
 from network import AC_Network
+import flags
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -41,6 +42,7 @@ def recreate_directory_structure():
 
 
 def run():
+    recreate_directory_structure()
     tf.reset_default_graph()
 
     with tf.device("/cpu:0"):

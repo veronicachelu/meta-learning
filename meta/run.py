@@ -1,10 +1,10 @@
-import os
 import threading
 
 import tensorflow as tf
 from agent import Worker
-from envs.dependent_bandits import dependent_bandit, eleven_arms
+from envs.bandit_envs import TwoArms, ElevenArms
 from network import AC_Network
+import flags
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -40,6 +40,7 @@ def recreate_directory_structure():
 
 
 def run():
+    recreate_directory_structure()
     tf.reset_default_graph()
 
     with tf.device("/cpu:0"):
@@ -52,9 +53,9 @@ def run():
         envs = []
         for i in range(num_workers):
             if FLAGS.game == '11arms':
-                this_env = eleven_arms()
+                this_env = ElevenArms()
             else:
-                this_env = dependent_bandit(FLAGS.game)
+                this_env = TwoArms(FLAGS.game)
             envs.append(this_env)
 
         for i in range(num_workers):

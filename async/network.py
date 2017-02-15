@@ -2,7 +2,6 @@ import math
 
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
 from utils import normalized_columns_initializer
@@ -14,7 +13,7 @@ class AC_Network():
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             self.inputs = tf.placeholder(
-                shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32)
+                shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32, name="Input")
             conv1_w = tf.get_variable("Conv1_W", shape=[8, 8, FLAGS.agent_history_length, 16],
                                       initializer=self.xavier_initializer())
             conv1_b = tf.Variable(tf.constant(0.01, shape=[16]), name='Conv1_b')

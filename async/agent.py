@@ -1,15 +1,10 @@
-import threading
-import multiprocessing
+from threading import Lock
+
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
 from network import AC_Network
-from random import choice
-from utils import update_target_graph, process_frame, discount
-from atari_environment import AtariEnvironment
+from utils import update_target_graph, discount
 import flags
-from threading import Thread, Lock
-
 FLAGS = tf.app.flags.FLAGS
 
 # Starting threads
@@ -67,7 +62,7 @@ class Worker():
                                                       self.local_AC.apply_grads,
                                                       self.local_AC.merged_summary],
                                                      feed_dict=feed_dict)
-        return v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
+        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
