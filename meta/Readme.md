@@ -36,4 +36,10 @@
     * ```--gradient_clip_value=```:  Clip the gradient of the weights if it overgrows this value. Default is ```50.0```.
     * ```--nb_test_episodes=```:  Number of testing environments to compute the mean regret and mean suboptimal number of arms on. Default is ```150```.
 
+## Tensorboard visualizations
 
+* From ```summaries_dir``` run:
+    
+        $ tensorboard --logdir=.
+    
+* Watch the training visualizations at ```localhost:6006```
