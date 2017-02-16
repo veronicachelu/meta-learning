@@ -1,7 +1,9 @@
 import threading
 
 import gym
+from gym import wrappers
 import gym_fast_envs
+
 import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
@@ -53,10 +55,12 @@ def run():
         workers = []
         envs = []
 
+
         for i in range(num_workers):
             this_env = AtariEnvironment(gym_env=gym.make(FLAGS.game), resized_width=FLAGS.resized_width,
                                         resized_height=FLAGS.resized_height,
                                         agent_history_length=FLAGS.agent_history_length)
+            this_env = wrappers.Monitor(this_env, './experiments/worker_{}'.format(i))
             envs.append(this_env)
         nb_actions = len(envs[0].gym_actions)
 
