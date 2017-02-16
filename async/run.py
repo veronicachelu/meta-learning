@@ -1,7 +1,7 @@
 import threading
 
 import gym
-import gym_ple
+import gym_fast_envs
 import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
