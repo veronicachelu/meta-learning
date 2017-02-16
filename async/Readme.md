@@ -24,7 +24,7 @@
     * ```--show_training=```:  Show windows with workers training. Default is ```True```.
     * ```--checkpoint_dir=```:  Directory where to save model checkpoints. Default is ```./models/```.
     * ```--summaries_dir=```:  Directory where to save model summaries in order to run tensorboard for visualizations. Default is ```./summaries/```.
-    * ```--frames_dir=```:  Directory where to save gifs of the training experiments. Default is ```./frames/```.
+    * ```--experiments_dir=```:  Directory where to save experiments. Default is ```./experiments/```.
     * ```--frames_test_dir=```:  Directory where to save gifs of the testing experiments. Default is ```./frames_test/```.
     * ```--summary_interval=```:  Number of episodes of interval between summary saves. Default is ```5```.
     * ```--checkpoint_interval=```:  Number of episodes of interval between checkpoint saves. Default is ```250```.

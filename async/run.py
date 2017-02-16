@@ -21,19 +21,12 @@ def recreate_directory_structure():
             tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
             tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
 
-    if not tf.gfile.Exists(FLAGS.frames_dir):
-        tf.gfile.MakeDirs(FLAGS.frames_dir)
+    if not tf.gfile.Exists(FLAGS.experiments_dir):
+        tf.gfile.MakeDirs(FLAGS.experiments_dir)
     else:
         if not FLAGS.resume and FLAGS.train:
-            tf.gfile.DeleteRecursively(FLAGS.frames_dir)
-            tf.gfile.MakeDirs(FLAGS.frames_dir)
-
-    if not tf.gfile.Exists(FLAGS.frames_test_dir):
-        tf.gfile.MakeDirs(FLAGS.frames_test_dir)
-    else:
-        if FLAGS.resume and not FLAGS.train:
-            tf.gfile.DeleteRecursively(FLAGS.frames_test_dir)
-            tf.gfile.MakeDirs(FLAGS.frames_test_dir)
+            tf.gfile.DeleteRecursively(FLAGS.experiments_dir)
+            tf.gfile.MakeDirs(FLAGS.experiments_dir)
 
     if not tf.gfile.Exists(FLAGS.summaries_dir):
         tf.gfile.MakeDirs(FLAGS.summaries_dir)
@@ -60,7 +53,7 @@ def run():
             this_env = AtariEnvironment(gym_env=gym.make(FLAGS.game), resized_width=FLAGS.resized_width,
                                         resized_height=FLAGS.resized_height,
                                         agent_history_length=FLAGS.agent_history_length)
-            this_env = wrappers.Monitor(this_env, './experiments/worker_{}'.format(i))
+            this_env = wrappers.Monitor(this_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
             envs.append(this_env)
         nb_actions = len(envs[0].gym_actions)
 
