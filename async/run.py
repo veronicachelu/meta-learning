@@ -48,12 +48,13 @@ def run():
         workers = []
         envs = []
 
-
         for i in range(num_workers):
-            this_env = AtariEnvironment(gym_env=gym.make(FLAGS.game), resized_width=FLAGS.resized_width,
+            gym_env = gym.make(FLAGS.game)
+            gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+            this_env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
                                         resized_height=FLAGS.resized_height,
                                         agent_history_length=FLAGS.agent_history_length)
-            this_env = wrappers.Monitor(this_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+
             envs.append(this_env)
         nb_actions = len(envs[0].gym_actions)
 
