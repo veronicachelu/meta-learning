@@ -123,3 +123,16 @@ meta/Du/
 meta/resources/11arms.png
 meta/resources/11arms.psd
 meta/results/
+frames_test/
+good_resume/
+models/model-2000.cptk-2000.data-00000-of-00001
+models/model-2500.cptk-2500.data-00000-of-00001
+models/model-3000.cptk-3000.data-00000-of-00001
+models/model-3500.cptk-3500.data-00000-of-00001
+models/model-4000.cptk-4000.data-00000-of-00001
+nohup.out
+promising_D2_1e-3/
+promising_De_1e-2/
+promising_De_1e-4/
+promising_De_1e-5/
+resources/11arm.psd

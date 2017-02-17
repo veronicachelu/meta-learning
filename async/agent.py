@@ -142,7 +142,7 @@ class Worker():
                 if len(episode_buffer) != 0:
                     l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0)
 
-                if FLAGS.train and episode_count % 5 == 0 and episode_count != 0:
+                if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
                     #     time_per_step = 0.05
                     #     images = np.array(episode_frames)
@@ -153,9 +153,9 @@ class Worker():
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-                    mean_reward = np.mean(self.episode_rewards[-5:])
-                    mean_length = np.mean(self.episode_lengths[-5:])
-                    mean_value = np.mean(self.episode_mean_values[-5:])
+                    mean_reward = np.mean(self.episode_rewards[-100:])
+                    mean_length = np.mean(self.episode_lengths[-100:])
+                    mean_value = np.mean(self.episode_mean_values[-100:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))

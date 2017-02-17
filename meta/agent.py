@@ -67,6 +67,7 @@ class Worker():
 
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
+
         total_steps = 0
         if not FLAGS.train:
             test_episode_count = 0
@@ -74,7 +75,7 @@ class Worker():
         print("Starting worker " + str(self.thread_id))
         with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
-                if episode_count > FLAGS.max_nb_episodes_train:
+                if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
                     return 0
 
                 sess.run(self.update_local_vars)
