@@ -27,3 +27,5 @@ tf.app.flags.DEFINE_float('lr', 1e-4, """Learning rate""")
 tf.app.flags.DEFINE_float('beta_v', 0.05, """Coefficient of value function loss""")
 tf.app.flags.DEFINE_float('beta_e', 0.01, """Coefficient of entropy function loss""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 40.0, """gradient_clip_value""")
+tf.app.flags.DEFINE_boolean('monitor', False,
+                            """Monitor test with gym monitor""")

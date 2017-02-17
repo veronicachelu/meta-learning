@@ -50,7 +50,8 @@ def run():
 
         for i in range(num_workers):
             gym_env = gym.make(FLAGS.game)
-            gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+            if FLAGS.monitor:
+                gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
             this_env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
                                         resized_height=FLAGS.resized_height,
                                         agent_history_length=FLAGS.agent_history_length)
@@ -75,8 +76,7 @@ def run():
 
         worker_threads = []
         for worker in workers:
-            worker_play = lambda: worker.play(sess, coord, saver)
-            t = threading.Thread(target=(worker_play))
+            t = threading.Thread(target=(lambda: worker.play(sess, coord, saver)))
             t.start()
             worker_threads.append(t)
 
