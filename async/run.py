@@ -40,32 +40,34 @@ def run():
     recreate_directory_structure()
     tf.reset_default_graph()
 
-    with tf.device("/cpu:0"):
-        global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
-        optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-
-        num_workers = FLAGS.nb_concurrent
-        workers = []
-        envs = []
-
-        for i in range(num_workers):
-            gym_env = gym.make(FLAGS.game)
-            if FLAGS.monitor:
-                gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
-            this_env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
-                                        resized_height=FLAGS.resized_height,
-                                        agent_history_length=FLAGS.agent_history_length)
-
-            envs.append(this_env)
-        nb_actions = len(envs[0].gym_actions)
-
-        global_network = AC_Network('global', nb_actions, None)
-
-        for i in range(num_workers):
-            workers.append(Worker(envs[i], i, nb_actions, optimizer, global_step))
-        saver = tf.train.Saver(max_to_keep=5)
-
     with tf.Session() as sess:
+        with tf.device("/cpu:0"):
+            global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
+            optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
+
+            num_workers = FLAGS.nb_concurrent
+            workers = []
+            envs = []
+
+
+            for i in range(num_workers):
+                gym_env = gym.make(FLAGS.game)
+                if FLAGS.monitor:
+                    gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+                this_env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
+                                            resized_height=FLAGS.resized_height,
+                                            agent_history_length=FLAGS.agent_history_length)
+
+                envs.append(this_env)
+            nb_actions = len(envs[0].gym_actions)
+
+            global_network = AC_Network('global', nb_actions, None)
+
+            for i in range(num_workers):
+                workers.append(Worker(envs[i], sess, i, nb_actions, optimizer, global_step))
+            saver = tf.train.Saver(max_to_keep=5)
+
+
         coord = tf.train.Coordinator()
         if FLAGS.resume:
             ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
@@ -76,7 +78,7 @@ def run():
 
         worker_threads = []
         for worker in workers:
-            t = threading.Thread(target=(lambda: worker.play(sess, coord, saver)))
+            t = threading.Thread(target=(lambda: worker.play(coord, saver)))
             t.start()
             worker_threads.append(t)
 

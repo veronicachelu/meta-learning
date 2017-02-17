@@ -12,7 +12,7 @@ main_lock = Lock()
 
 
 class Worker():
-    def __init__(self, game, thread_id, nb_actions, optimizer, global_step):
+    def __init__(self,game, sess, thread_id, nb_actions, optimizer, global_step):
         self.name = "worker_" + str(thread_id)
         self.thread_id = thread_id
         self.model_path = FLAGS.checkpoint_dir
@@ -22,6 +22,9 @@ class Worker():
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
+        self.sess = sess
+        self.graph = sess.graph
+        # self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id), self.graph)
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
@@ -31,7 +34,8 @@ class Worker():
         self.actions = np.zeros([nb_actions])
         self.env = game
 
-    def train(self, rollout, sess, bootstrap_value):
+
+    def train(self, rollout, bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:, 0]
         actions = rollout[:, 1]
@@ -53,7 +57,7 @@ class Worker():
                      self.local_AC.advantages: advantages,
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
-        l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
+        l, v_l, p_l, e_l, g_n, v_n, _, ms = self.sess.run([self.local_AC.loss,
                                                       self.local_AC.value_loss,
                                                       self.local_AC.policy_loss,
                                                       self.local_AC.entropy,
@@ -64,15 +68,15 @@ class Worker():
                                                      feed_dict=feed_dict)
         return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
-    def play(self, sess, coord, saver):
-        episode_count = sess.run(self.global_episode)
+    def play(self, coord, saver):
+        episode_count = self.sess.run(self.global_episode)
         total_steps = 0
 
         print("Starting worker " + str(self.thread_id))
-        with sess.as_default(), sess.graph.as_default():
+        with self.sess.as_default(), self.graph.as_default():
             while not coord.should_stop():
 
-                sess.run(self.update_local_ops)
+                self.sess.run(self.update_local_ops)
                 episode_buffer = []
                 episode_values = []
                 episode_frames = []
@@ -91,7 +95,7 @@ class Worker():
                                  self.local_AC.state_in[0]: rnn_state[0],
                                  self.local_AC.state_in[1]: rnn_state[1]}
 
-                    pi, v, rnn_state = sess.run(
+                    pi, v, rnn_state = self.sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out],
                         feed_dict=feed_dict)
                     a = np.random.choice(pi[0], p=pi[0])
@@ -123,11 +127,11 @@ class Worker():
                         feed_dict = {self.local_AC.inputs: [s],
                                      self.local_AC.state_in[0]: rnn_state[0],
                                      self.local_AC.state_in[1]: rnn_state[1]}
-                        v1 = sess.run(self.local_AC.value,
+                        v1 = self.sess.run(self.local_AC.value,
                                       feed_dict=feed_dict)[0, 0]
-                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, v1)
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1)
                         episode_buffer = []
-                        sess.run(self.update_local_ops)
+                        self.sess.run(self.update_local_ops)
                     if d:
                         break
 
@@ -136,7 +140,7 @@ class Worker():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
+                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0)
 
                 if FLAGS.train and episode_count % 5 == 0 and episode_count != 0:
                     # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
@@ -145,7 +149,7 @@ class Worker():
                     #     make_gif(images, './frames/image' + str(episode_count) + '.gif',
                     #              duration=len(images) * time_per_step, true_image=True, salience=False)
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
-                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
+                        saver.save(self.sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
@@ -157,14 +161,14 @@ class Worker():
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
-                    if FLAGS.train:
-                        self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
-                        self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
-                        self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
-                        self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
-                        self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
-                        self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
-
+                    #if FLAGS.train:
+                    self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
+                    self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
+                    self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
+                    self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
+                    self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
+                    self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                    if False:
                         summaries = tf.Summary().FromString(ms)
                         sub_summaries_dict = {}
                         for value in summaries.value:
@@ -199,5 +203,5 @@ class Worker():
 
                     self.summary_writer.flush()
                 if self.name == 'worker_0':
-                    sess.run(self.increment_global_episode)
+                    self.sess.run(self.increment_global_episode)
                 episode_count += 1
