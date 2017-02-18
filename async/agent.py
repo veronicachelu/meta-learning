@@ -104,9 +104,9 @@ class Worker():
 
                     s1, r, d, info = self.env.step(a)
 
-                    if FLAGS.show_training:
-                        with main_lock:
-                            self.env.env.render()
+                    # if FLAGS.show_training:
+                    #     with main_lock:
+                    #         self.env.env.render()
 
                     r = np.clip(r, -1, 1)
 

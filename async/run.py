@@ -1,5 +1,5 @@
 import threading
-
+from threading import Lock
 import gym
 from gym import wrappers
 #import gym_fast_envs
@@ -12,7 +12,7 @@ import flags
 
 FLAGS = tf.app.flags.FLAGS
 
-
+main_lock = Lock()
 def recreate_directory_structure():
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
         tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
@@ -82,10 +82,11 @@ def run():
             t.start()
             worker_threads.append(t)
 
-        # while True:
-        #     if FLAGS.show_training:
-        #         for env in envs:
-        #             env.render()
+        while True:
+            if FLAGS.show_training:
+                for env in envs:
+                    # with main_lock:
+                    env.env.render()
 
         coord.join(worker_threads)
 
