@@ -35,7 +35,7 @@ class Worker():
         self.env = game
 
 
-    def train(self, rollout, bootstrap_value):
+    def train(self, rollout, bootstrap_value, total_steps):
         rollout = np.array(rollout)
         observations = rollout[:, 0]
         actions = rollout[:, 1]
@@ -50,6 +50,7 @@ class Worker():
         td_residuals = rewards + FLAGS.gamma * value_plus[1:] - value_plus[:-1]
         advantages = discount(td_residuals, FLAGS.gamma)
 
+
         rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v: discounted_rewards,
                      self.local_AC.inputs: np.stack(observations, axis=0),
@@ -57,15 +58,28 @@ class Worker():
                      self.local_AC.advantages: advantages,
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
-        l, v_l, p_l, e_l, g_n, v_n, _, ms = self.sess.run([self.local_AC.loss,
-                                                      self.local_AC.value_loss,
-                                                      self.local_AC.policy_loss,
-                                                      self.local_AC.entropy,
-                                                      self.local_AC.grad_norms,
-                                                      self.local_AC.var_norms,
-                                                      self.local_AC.apply_grads,
-                                                      self.local_AC.merged_summary],
-                                                     feed_dict=feed_dict)
+
+        if total_steps % 40000 == 0:
+            l, v_l, p_l, e_l, g_n, v_n, _, ms = self.sess.run([self.local_AC.loss,
+                                                          self.local_AC.value_loss,
+                                                          self.local_AC.policy_loss,
+                                                          self.local_AC.entropy,
+                                                          self.local_AC.grad_norms,
+                                                          self.local_AC.var_norms,
+                                                          self.local_AC.apply_grads,
+                                                          self.local_AC.merged_summary],
+                                                         feed_dict=feed_dict)
+            self.sess.run(self.update_local_ops)
+        else:
+            l, v_l, p_l, e_l, g_n, v_n, ms = self.sess.run([self.local_AC.loss,
+                                                               self.local_AC.value_loss,
+                                                               self.local_AC.policy_loss,
+                                                               self.local_AC.entropy,
+                                                               self.local_AC.grad_norms,
+                                                               self.local_AC.var_norms,
+                                                               self.local_AC.merged_summary],
+                                                              feed_dict=feed_dict)
+
         return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
     def play(self, coord, saver):
@@ -76,7 +90,8 @@ class Worker():
         with self.sess.as_default(), self.graph.as_default():
             while not coord.should_stop():
 
-                self.sess.run(self.update_local_ops)
+                if total_steps == 0:
+                    self.sess.run(self.update_local_ops)
                 episode_buffer = []
                 episode_values = []
                 episode_frames = []
@@ -104,9 +119,8 @@ class Worker():
                     s1, r, d, info = self.env.step(a)
 
                     if FLAGS.show_training:
-                        if episode_step_count % 10 == 0:
-                            with main_lock:
-                                self.env.env.render()
+                        with main_lock:
+                            self.env.env.render()
 
                     r = np.clip(r, -1, 1)
 
@@ -129,9 +143,8 @@ class Worker():
                                      self.local_AC.state_in[1]: rnn_state[1]}
                         v1 = self.sess.run(self.local_AC.value,
                                       feed_dict=feed_dict)[0, 0]
-                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1)
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1, total_steps)
                         episode_buffer = []
-                        self.sess.run(self.update_local_ops)
                     if d:
                         break
 
@@ -140,7 +153,7 @@ class Worker():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0)
+                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0, total_steps)
 
                 if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
