@@ -59,27 +59,15 @@ class Worker():
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
 
-        if total_steps % 40000 == 0:
-            l, v_l, p_l, e_l, g_n, v_n, _, ms = self.sess.run([self.local_AC.loss,
-                                                          self.local_AC.value_loss,
-                                                          self.local_AC.policy_loss,
-                                                          self.local_AC.entropy,
-                                                          self.local_AC.grad_norms,
-                                                          self.local_AC.var_norms,
-                                                          self.local_AC.apply_grads,
-                                                          self.local_AC.merged_summary],
-                                                         feed_dict=feed_dict)
-            self.sess.run(self.update_local_ops)
-        else:
-            l, v_l, p_l, e_l, g_n, v_n, ms = self.sess.run([self.local_AC.loss,
-                                                               self.local_AC.value_loss,
-                                                               self.local_AC.policy_loss,
-                                                               self.local_AC.entropy,
-                                                               self.local_AC.grad_norms,
-                                                               self.local_AC.var_norms,
-                                                               self.local_AC.merged_summary],
-                                                              feed_dict=feed_dict)
-
+        l, v_l, p_l, e_l, g_n, v_n, _, ms = self.sess.run([self.local_AC.loss,
+                                                      self.local_AC.value_loss,
+                                                      self.local_AC.policy_loss,
+                                                      self.local_AC.entropy,
+                                                      self.local_AC.grad_norms,
+                                                      self.local_AC.var_norms,
+                                                      self.local_AC.apply_grads,
+                                                      self.local_AC.merged_summary],
+                                                     feed_dict=feed_dict)
         return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
     def play(self, coord, saver):
@@ -90,8 +78,7 @@ class Worker():
         with self.sess.as_default(), self.graph.as_default():
             while not coord.should_stop():
 
-                if total_steps == 0:
-                    self.sess.run(self.update_local_ops)
+                self.sess.run(self.update_local_ops)
                 episode_buffer = []
                 episode_values = []
                 episode_frames = []
@@ -145,6 +132,7 @@ class Worker():
                                       feed_dict=feed_dict)[0, 0]
                         l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1, total_steps)
                         episode_buffer = []
+                        self.sess.run(self.update_local_ops)
                     if d:
                         break
 
