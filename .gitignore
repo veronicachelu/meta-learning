@@ -9,9 +9,11 @@ __pycache__/
 *.cptk.*
 *.index
 # C extensions
+*.DS_Store
 *.so
 *.local
 *.gif
+*.cptk*
 
 # Distribution / packaging
 .Python
@@ -136,3 +138,9 @@ promising_De_1e-2/
 promising_De_1e-4/
 promising_De_1e-5/
 resources/11arm.psd
+async/experimens/
+async/frames/
+async/models/
+meta_bandits/De/frames/
+meta_bandits/frames/
+meta_bandits/models/
