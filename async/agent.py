@@ -35,7 +35,7 @@ class Worker():
         self.env = game
 
 
-    def train(self, rollout, bootstrap_value, total_steps):
+    def train(self, rollout, bootstrap_value):
         rollout = np.array(rollout)
         observations = rollout[:, 0]
         actions = rollout[:, 1]
@@ -49,7 +49,6 @@ class Worker():
         value_plus = np.asarray(values.tolist() + [bootstrap_value])
         td_residuals = rewards + FLAGS.gamma * value_plus[1:] - value_plus[:-1]
         advantages = discount(td_residuals, FLAGS.gamma)
-
 
         rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v: discounted_rewards,
@@ -130,7 +129,7 @@ class Worker():
                                      self.local_AC.state_in[1]: rnn_state[1]}
                         v1 = self.sess.run(self.local_AC.value,
                                       feed_dict=feed_dict)[0, 0]
-                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1, total_steps)
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1)
                         episode_buffer = []
                         self.sess.run(self.update_local_ops)
                     if d:
@@ -141,7 +140,7 @@ class Worker():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0, total_steps)
+                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0)
 
                 if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
