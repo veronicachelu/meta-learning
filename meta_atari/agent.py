@@ -7,36 +7,37 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Worker():
-    def __init__(self, game, thread_id, optimizer, global_step):
+    def __init__(self, game, sess, thread_id, nb_actions, optimizer, global_step):
         self.name = "worker_" + str(thread_id)
         self.thread_id = thread_id
         self.model_path = FLAGS.checkpoint_dir
-        self.optimizer = optimizer
+        self.trainer = optimizer
         self.global_episode = global_step
         self.increment_global_episode = self.global_episode.assign_add(1)
         self.episode_rewards = []
-
-        # if not FLAGS.train:
-        self.episode_optimal_rewards = []
-        self.episodes_suboptimal_arms = []
-
         self.episode_lengths = []
         self.episode_mean_values = []
+
+        self.sess = sess
+        self.graph = sess.graph
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
-        self.local_AC = AC_Network(self.name, optimizer, self.global_episode)
-        self.update_local_vars = update_target_graph('global', self.name)
+        self.local_AC = AC_Network(self.name, nb_actions, optimizer, self.global_episode)
+        self.update_local_ops = update_target_graph('global', self.name)
+
+        self.actions = np.zeros([nb_actions])
         self.env = game
 
-    def train(self, rollout, sess, bootstrap_value):
+    def train(self, rollout, bootstrap_value):
         rollout = np.array(rollout)
-        actions = rollout[:, 0]
-        rewards = rollout[:, 1]
-        timesteps = rollout[:, 2]
+        observations = rollout[:, 0]
+        actions = rollout[:, 1]
+        rewards = rollout[:, 2]
+        next_observations = rollout[:, 3]
         prev_rewards = [0] + rewards[:-1].tolist()
         prev_actions = [0] + actions[:-1].tolist()
-        values = rollout[:, 4]
+        values = rollout[:, 5]
 
         # The advantage function uses "Generalized Advantage Estimation"
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
@@ -50,11 +51,11 @@ class Worker():
                      self.local_AC.prev_rewards: np.vstack(prev_rewards),
                      self.local_AC.prev_actions: prev_actions,
                      self.local_AC.actions: actions,
-                     self.local_AC.timestep: np.vstack(timesteps),
+                     self.local_AC.inputs: np.stack(observations, axis=0),
                      self.local_AC.advantages: advantages,
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
-        l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
+        l, v_l, p_l, e_l, g_n, v_n, _, ms = self.sess.run([self.local_AC.loss,
                                                       self.local_AC.value_loss,
                                                       self.local_AC.policy_loss,
                                                       self.local_AC.entropy,
@@ -65,135 +66,106 @@ class Worker():
                                                      feed_dict=feed_dict)
         return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
 
-    def play(self, sess, coord, saver):
-        episode_count = sess.run(self.global_episode)
-
+    def play(self, coord, saver):
+        episode_count = self.sess.run(self.global_episode)
         total_steps = 0
-        if not FLAGS.train:
-            test_episode_count = 0
 
         print("Starting worker " + str(self.thread_id))
-        with sess.as_default(), sess.graph.as_default():
+        with self.sess.as_default(), self.graph.as_default():
             while not coord.should_stop():
-                if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
-                    return 0
 
-                sess.run(self.update_local_vars)
+                self.sess.run(self.update_local_ops)
                 episode_buffer = []
-
-                if not FLAGS.train:
-                    print("Episode {}".format(test_episode_count))
-
-                episode_rewards_for_optimal_arm = 0
-                episode_suboptimal_arm = 0
                 episode_values = []
                 episode_frames = []
-                episode_reward = [0 for _ in range(FLAGS.nb_actions)]
+                episode_reward = 0
                 episode_step_count = 0
                 d = False
                 r = 0
                 a = 0
-                t = 0
-                self.env.reset()
+
+                s = self.env.get_initial_state()
+                episode_frames.append(s)
                 rnn_state = self.local_AC.state_init
 
                 while not d:
                     feed_dict = {
                         self.local_AC.prev_rewards: [[r]],
-                        self.local_AC.timestep: [[t]],
+                        self.local_AC.inputs: [[s]],
                         self.local_AC.prev_actions: [a],
                         self.local_AC.state_in[0]: rnn_state[0],
                         self.local_AC.state_in[1]: rnn_state[1]}
 
-                    pi, v, rnn_state_new = sess.run(
+                    pi, v, rnn_state_new = self.sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out], feed_dict=feed_dict)
                     a = np.random.choice(pi[0], p=pi[0])
                     a = np.argmax(pi == a)
 
                     rnn_state = rnn_state_new
-                    r, d, t = self.env.pull_arm(a)
+                    s1, r, d, info = self.env.step(a)
 
-                    # if not FLAGS.train:
-                    episode_rewards_for_optimal_arm += self.env.pull_arm_for_test()
-                    optimal_action = self.env.get_optimal_arm()
-                    if optimal_action != a:
-                        episode_suboptimal_arm += 1
+                    r = np.clip(r, -1, 1)
 
-                    episode_buffer.append([a, r, t, d, v[0, 0]])
+                    if not d:
+                        episode_frames.append(s1)
+                    else:
+                        s1 = s
+
+                    episode_buffer.append([s, a, r, s1, d, v[0, 0]])
                     episode_values.append(v[0, 0])
 
-                    if not FLAGS.game == '11arms':
-                        episode_frames.append(set_image_bandit(episode_reward, self.env.get_bandit(), a, t))
-                    else:
-                        episode_frames.append(
-                            set_image_bandit_11_arms(episode_reward, self.env.get_optimal_arm(), a, t))
-
                     episode_reward[a] += r
+                    s = s1
                     total_steps += 1
                     episode_step_count += 1
 
-                self.episode_rewards.append(np.sum(episode_reward))
+                    if len(episode_buffer) == FLAGS.max_episode_buffer_size and not d:
+                        feed_dict = {
+                            self.local_AC.prev_rewards: [[r]],
+                            self.local_AC.inputs: [[s]],
+                            self.local_AC.prev_actions: [a],
+                            self.local_AC.state_in[0]: rnn_state[0],
+                            self.local_AC.state_in[1]: rnn_state[1]}
+                        v1 = self.sess.run(self.local_AC.value,
+                                           feed_dict=feed_dict)[0, 0]
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, v1)
+                        episode_buffer = []
+                        self.sess.run(self.update_local_ops)
+                    if d:
+                        break
 
-                self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
-                self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
-
-                if not FLAGS.train:
-                    print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
-                                                                                     episode_rewards_for_optimal_arm))
-                    print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
-                    print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
-
+                self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
-                if len(episode_buffer) != 0 and FLAGS.train == True:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
+                if len(episode_buffer) != 0:
+                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, 0.0)
 
-                if episode_count % FLAGS.nb_test_episodes:
-                    episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards[-150:], self.episode_rewards[-150:])]
-                    mean_regret = np.mean(episode_regret)
-                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-150:])
-
-                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
-                    print("Mean regret for the model is {}".format(mean_regret))
-                    print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
-                    return 1
-
-                if not FLAGS.train:
-                    self.images = np.array(episode_frames)
-                    make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
-                             duration=len(self.images) * 0.1, true_image=True)
-
-                if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
+                if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
-                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
+                        saver.save(self.sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-                    if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
-                        self.images = np.array(episode_frames)
-                        make_gif(self.images, FLAGS.frames_dir + '/image' + str(episode_count) + '.gif',
-                                 duration=len(self.images) * 0.1, true_image=True)
+                    mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
+                    mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
+                    mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
 
-                    mean_reward = np.mean(self.episode_rewards[-50:])
-                    mean_length = np.mean(self.episode_lengths[-50:])
-                    mean_value = np.mean(self.episode_mean_values[-50:])
+                    if episode_count % FLAGS.test_performance_interval == 0:
+                        won_games = self.episode_rewards[-FLAGS.test_performance_interval:].count(1)
+                        self.summary.value.add(tag='Perf/Won Games/1000', simple_value=float(won_games))
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
-                    if FLAGS.train:
-                        if episode_count % FLAGS.nb_test_episodes:
-                            self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
-                            self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
-                        self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
-                        self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
-                        self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
-                        self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
-                        self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
-                        self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                    self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
+                    self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
+                    self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
+                    self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
+                    self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
+                    self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                    if False:
                         summaries = tf.Summary().FromString(ms)
                         sub_summaries_dict = {}
                         for value in summaries.value:
@@ -228,7 +200,5 @@ class Worker():
 
                     self.summary_writer.flush()
                 if self.name == 'worker_0':
-                    sess.run(self.increment_global_episode)
-                if not FLAGS.train:
-                    test_episode_count += 1
+                    self.sess.run(self.increment_global_episode)
                 episode_count += 1

@@ -10,15 +10,44 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class AC_Network():
-    def __init__(self, scope, trainer, global_step=None):
+    def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
-            self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
+
+            self.inputs = tf.placeholder(
+                shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
+                name="Input")
+
+            conv1_w = tf.get_variable("Conv1_W", shape=[5, 5, FLAGS.agent_history_length, 32],
+                                      initializer=self.xavier_initializer())
+            conv1_b = tf.Variable(tf.constant(0.01, shape=[32]), name='Conv1_b')
+
+            self.conv1 = self.conv2d(self.inputs, conv1_w, conv1_b, strides=2, padding="SAME")
+
+            conv2_w = tf.get_variable("Conv2_W", shape=[5, 5, 32, 32],
+                                      initializer=self.xavier_initializer())
+            conv2_b = tf.Variable(tf.constant(0.01, shape=[32]), name="Conv2_b")
+
+            self.conv2 = self.conv2d(self.conv1, conv2_w, conv2_b, strides=2, padding="VALID")
+
+            conv2_shape = self.conv2.get_shape()[1] * \
+                          self.conv2.get_shape()[2] * \
+                          self.conv2.get_shape()[3]
+            conv2_shape = conv2_shape.value
+            conv2_flat = tf.reshape(self.conv2, [-1, conv2_shape])
+
+            fc1_w = tf.get_variable("FC1_W", shape=[conv2_shape, 32],
+                                    initializer=self.xavier_initializer())
+            fc1_b = tf.Variable(tf.constant(0.01, shape=[32]), name="FC1_b")
+
+            encoded_inputs = tf.matmul(conv2_flat, fc1_w) + fc1_b
+            encoded_inputs = tf.nn.elu(encoded_inputs)
+
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
 
-            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep],
+            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, encoded_inputs],
                                name="Concatenated_input")
 
             lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)
@@ -41,7 +70,7 @@ class AC_Network():
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
             rnn_out = tf.reshape(lstm_outputs, [-1, 48], name="RNN_out")
 
-            fc_pol_w = tf.get_variable("FC_Pol_W", shape=[48, FLAGS.nb_actions],
+            fc_pol_w = tf.get_variable("FC_Pol_W", shape=[48, nb_actions],
                                        initializer=normalized_columns_initializer(0.01))
             self.policy = tf.nn.softmax(tf.matmul(rnn_out, fc_pol_w, name="Policy"), name="Policy_soft")
 
@@ -60,34 +89,55 @@ class AC_Network():
                 self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
                 # Loss functions
-                self.value_loss = FLAGS.beta_v * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
+                self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy + 1e-7))
 
-                starter_beta_e = 1.0
-                end_beta_e = 0.0
-                decay_steps = 20000
-                self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
-                                                        decay_steps, end_beta_e,
-                                                        power=0.5)
-
+                # starter_beta_e = 1.0
+                # end_beta_e = 0.0
+                # decay_steps = 20000
+                # self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
+                #                                         decay_steps, end_beta_e,
+                #                                         power=0.5)
                 self.policy_loss = -tf.reduce_sum(
-                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) - self.entropy * self.beta_e
+                    tf.log(self.responsible_outputs + 1e-7) * self.advantages)
 
-                self.loss = self.value_loss + self.policy_loss
+                self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
 
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
                 self.gradients = tf.gradients(self.loss, local_vars)
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
+                self.worker_summaries = []
                 for grad, weight in zip(grads, local_vars):
-                    tf.summary.histogram(weight.name + '_grad', grad)
-                    tf.summary.histogram(weight.name, weight)
+                    self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
+                    self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
 
-                self.merged_summary = tf.summary.merge_all()
+                self.merged_summary = tf.summary.merge(self.worker_summaries)
 
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
                 self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
+
+    def conv2d(self, x, W, b, strides=1, padding='SAME'):
+        # Conv2D wrapper, with bias and relu activation
+        x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding=padding)
+        x = tf.nn.bias_add(x, b)
+        return tf.nn.relu(x)
+
+    def maxpool2d(self, x, k=2, padding='SAME'):
+        # MaxPool2D wrapper
+        return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1],
+                              padding=padding)
+
+    def fc(self, x, W, b, activation_fnt):
+        fc_result = tf.matmul(x, W)
+        if b:
+            fc_result += b
+
+        if activation_fnt == "softmax":
+            return tf.nn.softmax(fc_result)
+        else:
+            return fc_result
 
     def xavier_initializer(self, uniform=True, seed=None, dtype=dtypes.float32):
         return self.variance_scaling_initializer(factor=1.0, mode='FAN_AVG',

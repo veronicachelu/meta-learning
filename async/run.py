@@ -2,8 +2,8 @@ import threading
 from threading import Lock
 import gym
 from gym import wrappers
-#import gym_fast_envs
-import gym_ple
+import gym_fast_envs
+#import gym_ple
 import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
@@ -66,7 +66,6 @@ def run():
             for i in range(num_workers):
                 workers.append(Worker(envs[i], sess, i, nb_actions, optimizer, global_step))
             saver = tf.train.Saver(max_to_keep=5)
-
 
         coord = tf.train.Coordinator()
         if FLAGS.resume:

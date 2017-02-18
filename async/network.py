@@ -13,14 +13,15 @@ class AC_Network():
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             self.inputs = tf.placeholder(
-                shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32, name="Input")
-            conv1_w = tf.get_variable("Conv1_W", shape=[8, 8, FLAGS.agent_history_length, 16],
+                shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
+                name="Input")
+            conv1_w = tf.get_variable("Conv1_W", shape=[5, 5, FLAGS.agent_history_length, 32],
                                       initializer=self.xavier_initializer())
-            conv1_b = tf.Variable(tf.constant(0.01, shape=[16]), name='Conv1_b')
+            conv1_b = tf.Variable(tf.constant(0.01, shape=[32]), name='Conv1_b')
 
-            self.conv1 = self.conv2d(self.inputs, conv1_w, conv1_b, strides=4, padding="VALID")
+            self.conv1 = self.conv2d(self.inputs, conv1_w, conv1_b, strides=2, padding="SAME")
 
-            conv2_w = tf.get_variable("Conv2_W", shape=[4, 4, 16, 32],
+            conv2_w = tf.get_variable("Conv2_W", shape=[5, 5, 32, 32],
                                       initializer=self.xavier_initializer())
             conv2_b = tf.Variable(tf.constant(0.01, shape=[32]), name="Conv2_b")
 
@@ -32,14 +33,14 @@ class AC_Network():
             conv2_shape = conv2_shape.value
             conv2_flat = tf.reshape(self.conv2, [-1, conv2_shape])
 
-            fc1_w = tf.get_variable("FC1_W", shape=[conv2_shape, 256],
+            fc1_w = tf.get_variable("FC1_W", shape=[conv2_shape, 32],
                                     initializer=self.xavier_initializer())
-            fc1_b = tf.Variable(tf.constant(0.01, shape=[256]), name="FC1_b")
+            fc1_b = tf.Variable(tf.constant(0.01, shape=[32]), name="FC1_b")
 
             hidden = tf.matmul(conv2_flat, fc1_w) + fc1_b
             hidden = tf.nn.elu(hidden)
 
-            lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(256, state_is_tuple=True)
+            lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(32, state_is_tuple=True)
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
             self.state_init = [c_init, h_init]
@@ -57,12 +58,12 @@ class AC_Network():
             lstm_c, lstm_h = lstm_state
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
 
-            rnn_out = tf.reshape(lstm_outputs, [-1, 256])
+            rnn_out = tf.reshape(lstm_outputs, [-1, 32])
 
-            fc_pol_w = tf.get_variable("FC_Pol_W", shape=[256, nb_actions],
+            fc_pol_w = tf.get_variable("FC_Pol_W", shape=[32, nb_actions],
                                        initializer=normalized_columns_initializer(0.01))
             self.policy = self.fc(rnn_out, fc_pol_w, None, "softmax")
-            fc_value_w = tf.get_variable("FC_Value_W", shape=[256, 1],
+            fc_value_w = tf.get_variable("FC_Value_W", shape=[32, 1],
                                          initializer=normalized_columns_initializer(1.0))
             self.value = self.fc(rnn_out, fc_value_w, None, None)
 
