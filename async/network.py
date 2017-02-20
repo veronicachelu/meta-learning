@@ -71,7 +71,7 @@ class AC_Network():
             #
             # rnn_out = tf.reshape(lstm_outputs, [-1, 32])
 
-            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None)
+            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None, scope="policy")
             self.policy = tf.nn.softmax(self.policy) + 1e-8
 
 
@@ -84,7 +84,7 @@ class AC_Network():
             self.value = tf.contrib.layers.fully_connected(
                 inputs=hidden,
                 num_outputs=1,
-                activation_fn=None)
+                activation_fn=None, scope="value")
 
             if scope != 'global':
 

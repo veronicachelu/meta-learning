@@ -3,7 +3,7 @@ import tensorflow as tf
 # Basic model parameters.
 tf.app.flags.DEFINE_string('game', 'Catcher-v0',
                            """Experiment name from Atari platform""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")

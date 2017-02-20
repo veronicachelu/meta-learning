@@ -126,9 +126,9 @@ class Worker():
                     else:
                         feed_dict = {self.local_AC.inputs: [s]}
 
-                    pi, v = self.sess.run(
-                        [self.local_AC.policy, self.local_AC.value],
-                        feed_dict=feed_dict)
+                        pi, v = self.sess.run(
+                            [self.local_AC.policy, self.local_AC.value],
+                            feed_dict=feed_dict)
 
                     a = np.random.choice(pi[0], p=pi[0])
                     a = np.argmax(pi == a)
