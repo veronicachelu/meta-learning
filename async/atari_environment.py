@@ -2,8 +2,8 @@ from collections import deque
 
 import numpy as np
 from skimage.color import rgb2gray
-from skimage.transform import resize
-
+# from skimage.transform import resize
+from PIL import Image
 
 class AtariEnvironment(object):
     def __init__(self, gym_env, resized_width, resized_height, agent_history_length):
@@ -37,7 +37,19 @@ class AtariEnvironment(object):
         return s_t
 
     def get_preprocessed_frame(self, observation):
-        return resize(rgb2gray(observation), (self.resized_width, self.resized_height))
+        # gray = 0.2125 * observation[..., 0]
+        # gray[:] += 0.7154 * observation[..., 1]
+        # gray[:] += 0.0721 * observation[..., 2]
+
+        #
+        #     return gray
+        lum = Image.fromarray(observation)
+        lum = lum.convert('L')
+
+        lum = lum.resize((self.resized_width, self.resized_height))
+        pix = np.array(lum).astype(float) / 255
+        # return self.color2gray(observation).resize((self.resized_width, self.resized_height))
+        return pix
 
     def step(self, action_index):
         x_t1, r_t, terminal, info = self.env.step(self.gym_actions[action_index])
@@ -54,3 +66,29 @@ class AtariEnvironment(object):
         self.state_buffer.append(x_t1)
 
         return s_t1, r_t, terminal, info
+
+    # def color2gray(self, rgb):
+    #     if rgb.ndim == 2:
+    #         return np.ascontiguousarray(rgb)
+    #
+    #     rgb = self.prepare_colorarray(rgb[..., :3])
+    #
+    #     gray = 0.2125 * rgb[..., 0]
+    #     gray[:] += 0.7154 * rgb[..., 1]
+    #     gray[:] += 0.0721 * rgb[..., 2]
+    #
+    #     return gray
+    #
+    # def prepare_colorarray(self, arr):
+    #     """Check the shape of the array and convert it to
+    #     floating point representation.
+    #
+    #     """
+    #     arr = np.asanyarray(arr)
+    #
+    #     if arr.ndim not in [3, 4] or arr.shape[-1] != 3:
+    #         msg = ("the input array must be have a shape == (.., ..,[ ..,] 3)), " +
+    #                "got (" + (", ".join(map(str, arr.shape))) + ")")
+    #         raise ValueError(msg)
+    #
+    #     return arr.astype(float)

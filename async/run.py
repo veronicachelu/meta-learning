@@ -43,15 +43,15 @@ def run():
     with tf.Session() as sess:
         with tf.device("/cpu:0"):
             global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
-            optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-
+            # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
+            optimizer = tf.train.RMSPropOptimizer(FLAGS.lr, 0.99, 0.0, 1e-6)
             num_workers = FLAGS.nb_concurrent
             workers = []
             envs = []
 
-
             for i in range(num_workers):
                 gym_env = gym.make(FLAGS.game)
+                gym_env.seed(FLAGS.seed)
                 if FLAGS.monitor:
                     gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
                 this_env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,

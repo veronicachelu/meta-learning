@@ -9,7 +9,7 @@ from utils import normalized_columns_initializer
 FLAGS = tf.app.flags.FLAGS
 
 
-class AC_Network():
+class AC_Network_LSTM():
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             self.inputs = tf.placeholder(
@@ -40,47 +40,38 @@ class AC_Network():
             hidden = tf.matmul(conv2_flat, fc1_w) + fc1_b
             hidden = tf.nn.relu(hidden)
 
-            # lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(32, state_is_tuple=True)
-            # c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
-            # h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
-            # self.state_init = [c_init, h_init]
-            # c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
-            # h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
-            # self.state_in = (c_in, h_in)
-            #
-            # rnn_in = tf.expand_dims(hidden, [0])
-            # step_size = tf.shape(self.inputs)[:1]
-            # state_in = tf.nn.rnn_cell.LSTMStateTuple(c_in, h_in)
-            #
-            # lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-            #     lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
-            #     time_major=False)
-            # lstm_c, lstm_h = lstm_state
-            # self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-            #
-            # rnn_out = tf.reshape(lstm_outputs, [-1, 32])
+            lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(32, state_is_tuple=True)
+            c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
+            h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
+            self.state_init = [c_init, h_init]
+            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
+            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
+            self.state_in = (c_in, h_in)
+
+            rnn_in = tf.expand_dims(hidden, [0])
+            step_size = tf.shape(self.inputs)[:1]
+            state_in = tf.nn.rnn_cell.LSTMStateTuple(c_in, h_in)
+
+            lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+                lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
+                time_major=False)
+            lstm_c, lstm_h = lstm_state
+            self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
+
+            rnn_out = tf.reshape(lstm_outputs, [-1, 32])
 
             fc_pol_w = tf.get_variable("FC_Pol_W", shape=[32, nb_actions],
                                        initializer=normalized_columns_initializer(0.01))
-            self.policy = self.fc(hidden, fc_pol_w, None, "softmax")
+            self.policy = self.fc(rnn_out, fc_pol_w, None, "softmax")
             fc_value_w = tf.get_variable("FC_Value_W", shape=[32, 1],
                                          initializer=normalized_columns_initializer(1.0))
-            self.value = self.fc(hidden, fc_value_w, None, None)
+            self.value = self.fc(rnn_out, fc_value_w, None, None)
 
             if scope != 'global':
-
                 self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
                 self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32)
                 self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
                 self.advantages = tf.placeholder(shape=[None], dtype=tf.float32)
-
-                self.max_value = tf.reduce_max(tf.reshape(self.value, [-1]))
-                self.min_value = tf.reduce_min(tf.reshape(self.value, [-1]))
-                self.mean_value = tf.reduce_mean(tf.reshape(self.value, [-1]))
-
-                self.max_reward = tf.reduce_max(self.target_v)
-                self.min_reward = tf.reduce_min(self.target_v)
-                self.mean_reward = tf.reduce_mean(self.target_v)
 
                 self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
@@ -122,7 +113,7 @@ class AC_Network():
             fc_result += b
 
         if activation_fnt == "softmax":
-            return tf.nn.softmax(fc_result) + 1e-8
+            return tf.nn.softmax(fc_result)
         else:
             return fc_result
 

@@ -6,4 +6,3 @@ scipy==0.18.1
 six==1.10.0
 imageio==1.6
 scikit-image==0.12.3
-matplotlib=2.0.0
