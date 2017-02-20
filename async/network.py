@@ -51,6 +51,10 @@ class AC_Network():
                 num_outputs=32,
                 scope="fc1")
 
+            summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
+            summary_conv2_act = tf.contrib.layers.summarize_activation(conv2)
+            summary_linear_act = tf.contrib.layers.summarize_activation(hidden)
+
             # lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(32, state_is_tuple=True)
             # c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             # h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
@@ -114,7 +118,7 @@ class AC_Network():
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
-                self.worker_summaries = []
+                self.worker_summaries = [summary_conv1_act, summary_conv2_act, summary_linear_act]
                 for grad, weight in zip(grads, local_vars):
                     self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
                     self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
