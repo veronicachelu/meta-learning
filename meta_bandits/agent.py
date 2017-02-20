@@ -42,8 +42,11 @@ class Worker():
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
         discounted_rewards = discount(rewards_plus, FLAGS.gamma)[:-1]
         value_plus = np.asarray(values.tolist() + [bootstrap_value])
-        td_residuals = rewards + FLAGS.gamma * value_plus[1:] - value_plus[:-1]
-        advantages = discount(td_residuals, FLAGS.gamma)
+        policy_target = discounted_rewards - value_plus[:-1]
+        if FLAGS.gen_adv:
+            td_residuals = rewards + FLAGS.gamma * value_plus[1:] - value_plus[:-1]
+            advantages = discount(td_residuals, FLAGS.gamma)
+            policy_target = advantages
 
         rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v: discounted_rewards,
@@ -51,9 +54,10 @@ class Worker():
                      self.local_AC.prev_actions: prev_actions,
                      self.local_AC.actions: actions,
                      self.local_AC.timestep: np.vstack(timesteps),
-                     self.local_AC.advantages: advantages,
+                     self.local_AC.advantages: policy_target,
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
+
         l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
                                                       self.local_AC.value_loss,
                                                       self.local_AC.policy_loss,

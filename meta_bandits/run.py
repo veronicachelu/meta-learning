@@ -1,6 +1,8 @@
 import threading
 
 import tensorflow as tf
+import random
+import numpy as np
 from agent import Worker
 from envs.bandit_envs import TwoArms, ElevenArms
 from network import AC_Network
@@ -38,6 +40,9 @@ def recreate_directory_structure():
             tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
             tf.gfile.MakeDirs(FLAGS.summaries_dir)
 
+# def sample_params():
+#     FLAGS.lr = 10 ** np.random.uniform(np.log10(10**(-2)), np.log10((10**(-4))))
+#     FLAGS.gamma = np.random.uniform(0.8, 1.0)
 
 def run():
     recreate_directory_structure()
