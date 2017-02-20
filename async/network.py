@@ -15,30 +15,41 @@ class AC_Network():
             self.inputs = tf.placeholder(
                 shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
                 name="Input")
-            conv1_w = tf.get_variable("Conv1_W", shape=[5, 5, FLAGS.agent_history_length, 32],
-                                      initializer=self.xavier_initializer())
-            conv1_b = tf.Variable(tf.constant(0.01, shape=[32]), name='Conv1_b')
+            # conv1_w = tf.get_variable("Conv1_W", shape=[5, 5, FLAGS.agent_history_length, 32],
+            #                           initializer=self.xavier_initializer())
+            # conv1_b = tf.Variable(tf.constant(0.01, shape=[32]), name='Conv1_b')
+            #
+            # self.conv1 = self.conv2d(self.inputs, conv1_w, conv1_b, strides=2, padding="SAME")
+            #
+            # conv2_w = tf.get_variable("Conv2_W", shape=[5, 5, 32, 32],
+            #                           initializer=self.xavier_initializer())
+            # conv2_b = tf.Variable(tf.constant(0.01, shape=[32]), name="Conv2_b")
+            #
+            # self.conv2 = self.conv2d(self.conv1, conv2_w, conv2_b, strides=2, padding="VALID")
+            #
+            # conv2_shape = self.conv2.get_shape()[1] * \
+            #               self.conv2.get_shape()[2] * \
+            #               self.conv2.get_shape()[3]
+            # conv2_shape = conv2_shape.value
+            # conv2_flat = tf.reshape(self.conv2, [-1, conv2_shape])
+            #
+            # fc1_w = tf.get_variable("FC1_W", shape=[conv2_shape, 32],
+            #                         initializer=self.xavier_initializer())
+            # fc1_b = tf.Variable(tf.constant(0.01, shape=[32]), name="FC1_b")
+            #
+            # hidden = tf.matmul(conv2_flat, fc1_w) + fc1_b
+            # hidden = tf.nn.relu(hidden)
 
-            self.conv1 = self.conv2d(self.inputs, conv1_w, conv1_b, strides=2, padding="SAME")
+            conv1 = tf.contrib.layers.conv2d(
+                self.inputs, 16, 5, 2, activation_fn=tf.nn.relu, scope="conv1")
+            conv2 = tf.contrib.layers.conv2d(
+                conv1, 32, 5, 2, padding="VALID", activation_fn=tf.nn.relu, scope="conv2")
 
-            conv2_w = tf.get_variable("Conv2_W", shape=[5, 5, 32, 32],
-                                      initializer=self.xavier_initializer())
-            conv2_b = tf.Variable(tf.constant(0.01, shape=[32]), name="Conv2_b")
-
-            self.conv2 = self.conv2d(self.conv1, conv2_w, conv2_b, strides=2, padding="VALID")
-
-            conv2_shape = self.conv2.get_shape()[1] * \
-                          self.conv2.get_shape()[2] * \
-                          self.conv2.get_shape()[3]
-            conv2_shape = conv2_shape.value
-            conv2_flat = tf.reshape(self.conv2, [-1, conv2_shape])
-
-            fc1_w = tf.get_variable("FC1_W", shape=[conv2_shape, 32],
-                                    initializer=self.xavier_initializer())
-            fc1_b = tf.Variable(tf.constant(0.01, shape=[32]), name="FC1_b")
-
-            hidden = tf.matmul(conv2_flat, fc1_w) + fc1_b
-            hidden = tf.nn.relu(hidden)
+            # Fully connected layer
+            hidden = tf.contrib.layers.fully_connected(
+                inputs=tf.contrib.layers.flatten(conv2),
+                num_outputs=32,
+                scope="fc1")
 
             # lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(32, state_is_tuple=True)
             # c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
@@ -60,12 +71,20 @@ class AC_Network():
             #
             # rnn_out = tf.reshape(lstm_outputs, [-1, 32])
 
-            fc_pol_w = tf.get_variable("FC_Pol_W", shape=[32, nb_actions],
-                                       initializer=normalized_columns_initializer(0.01))
-            self.policy = self.fc(hidden, fc_pol_w, None, "softmax")
-            fc_value_w = tf.get_variable("FC_Value_W", shape=[32, 1],
-                                         initializer=normalized_columns_initializer(1.0))
-            self.value = self.fc(hidden, fc_value_w, None, None)
+            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None)
+            self.policy = tf.nn.softmax(self.policy) + 1e-8
+
+
+            # fc_pol_w = tf.get_variable("FC_Pol_W", shape=[32, nb_actions],
+            #                            initializer=normalized_columns_initializer(0.01))
+            # self.policy = self.fc(hidden, fc_pol_w, None, "softmax")
+            # fc_value_w = tf.get_variable("FC_Value_W", shape=[32, 1],
+            #                              initializer=normalized_columns_initializer(1.0))
+            # self.value = self.fc(hidden, fc_value_w, None, None)
+            self.value = tf.contrib.layers.fully_connected(
+                inputs=hidden,
+                num_outputs=1,
+                activation_fn=None)
 
             if scope != 'global':
 

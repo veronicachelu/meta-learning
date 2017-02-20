@@ -17,7 +17,7 @@ tf.app.flags.DEFINE_string('frames_test_dir', './frames_test',
                            """Directory where to write test event gifs""")
 tf.app.flags.DEFINE_integer('summary_interval', 5, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 500, """Number of episodes of interval between checkpoint saves""")
-tf.app.flags.DEFINE_integer('frames_interval', 100, """Number of episodes of interval between frames saves""")
+tf.app.flags.DEFINE_integer('frames_interval', 20000, """Number of episodes of interval between frames saves""")
 tf.app.flags.DEFINE_integer('nb_actions', 2, """Number of actions to take""")
 tf.app.flags.DEFINE_float('gamma', 0.6, """Gamma value""")
 tf.app.flags.DEFINE_float('lr', 1e-2, """Learning rate""")
