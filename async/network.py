@@ -9,7 +9,7 @@ from utils import normalized_columns_initializer
 FLAGS = tf.app.flags.FLAGS
 
 
-class AC_Network():
+class ACNetwork():
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             self.inputs = tf.placeholder(
@@ -41,14 +41,14 @@ class AC_Network():
             # hidden = tf.nn.relu(hidden)
 
             conv1 = tf.contrib.layers.conv2d(
-                self.inputs, 16, 5, 2, activation_fn=tf.nn.relu, scope="conv1")
+                self.inputs, 32, 5, 2, activation_fn=tf.nn.relu, scope="conv1")
             conv2 = tf.contrib.layers.conv2d(
                 conv1, 32, 5, 2, padding="VALID", activation_fn=tf.nn.relu, scope="conv2")
 
             # Fully connected layer
             hidden = tf.contrib.layers.fully_connected(
                 inputs=tf.contrib.layers.flatten(conv2),
-                num_outputs=32,
+                num_outputs=64,
                 scope="fc1")
 
             summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
@@ -76,7 +76,7 @@ class AC_Network():
             # rnn_out = tf.reshape(lstm_outputs, [-1, 32])
 
             self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None, scope="policy")
-            self.policy = tf.nn.softmax(self.policy) + 1e-8
+            self.policy = tf.nn.softmax(self.policy, name="policy") + 1e-8
 
             summary_policy_act = tf.contrib.layers.summarize_activation(self.policy)
 

@@ -7,7 +7,8 @@ import gym_fast_envs
 import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
-from network import AC_Network
+from network import ACNetwork
+from eval import PolicyMonitor
 import flags
 
 FLAGS = tf.app.flags.FLAGS
@@ -45,6 +46,7 @@ def run():
             global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
             # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
             optimizer = tf.train.RMSPropOptimizer(FLAGS.lr, 0.99, 0.0, 1e-6)
+
             num_workers = FLAGS.nb_concurrent
             workers = []
             envs = []
@@ -52,6 +54,7 @@ def run():
             for i in range(num_workers):
                 gym_env = gym.make(FLAGS.game)
                 gym_env.seed(FLAGS.seed)
+
                 if FLAGS.monitor:
                     gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
                 this_env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
@@ -61,11 +64,24 @@ def run():
                 envs.append(this_env)
             nb_actions = len(envs[0].gym_actions)
 
-            global_network = AC_Network('global', nb_actions, None)
+            global_network = ACNetwork('global', nb_actions, None)
 
             for i in range(num_workers):
                 workers.append(Worker(envs[i], sess, i, nb_actions, optimizer, global_step))
             saver = tf.train.Saver(max_to_keep=5)
+
+            gym_env_monitor = gym.make(FLAGS.game)
+            gym_env_monitor.seed(FLAGS.seed)
+            gym_env_monitor_wrapper = AtariEnvironment(gym_env=gym_env_monitor, resized_width=FLAGS.resized_width,
+                                        resized_height=FLAGS.resized_height,
+                                        agent_history_length=FLAGS.agent_history_length)
+            nb_actions = len(gym_env_monitor_wrapper.gym_actions)
+            pe = PolicyMonitor(
+                game=gym_env_monitor_wrapper,
+                nb_actions=nb_actions,
+                optimizer=optimizer,
+                global_step=global_step
+            )
 
         coord = tf.train.Coordinator()
         if FLAGS.resume:
@@ -81,9 +97,14 @@ def run():
             t.start()
             worker_threads.append(t)
 
+        # Start a thread for policy eval task
+        monitor_thread = threading.Thread(target=lambda: pe.continuous_eval(FLAGS.eval_every, sess, coord))
+        monitor_thread.start()
+        import time
         while True:
             if FLAGS.show_training:
                 for env in envs:
+                    # time.sleep(1)
                     # with main_lock:
                     env.env.render()
 

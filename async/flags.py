@@ -3,11 +3,11 @@ import tensorflow as tf
 # Basic model parameters.
 tf.app.flags.DEFINE_string('game', 'Catcher-v0',
                            """Experiment name from Atari platform""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
-tf.app.flags.DEFINE_boolean('show_training', False,
+tf.app.flags.DEFINE_boolean('show_training', True,
                             """Show windows with workers training""")
 tf.app.flags.DEFINE_string('checkpoint_dir', './models',
                            """Directory where to save model checkpoints.""")
@@ -36,3 +36,4 @@ tf.app.flags.DEFINE_boolean('lstm', False,
                             """Whether to use lstm or not""")
 tf.app.flags.DEFINE_boolean('gen_adv', False,
                             """Whether to use generalized advantage estimator or not""")
+tf.flags.DEFINE_integer("eval_every", 10, "Evaluate the policy every N seconds")
