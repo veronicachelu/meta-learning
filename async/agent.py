@@ -7,7 +7,6 @@ from network_lstm import ACNetworkLSTM
 
 from utils import update_target_graph, discount
 import flags
-import random
 
 FLAGS = tf.app.flags.FLAGS
 # Starting threads
@@ -25,7 +24,6 @@ class Worker():
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
-        # self.probability_of_random_action = FLAGS.initial_random_action_prob
 
         self.sess = sess
         self.graph = sess.graph
@@ -49,6 +47,9 @@ class Worker():
         actions = rollout[:, 1]
         rewards = rollout[:, 2]
         next_observations = rollout[:, 3]
+        if FLAGS.meta:
+            prev_rewards = [0] + rewards[:-1].tolist()
+            prev_actions = [0] + actions[:-1].tolist()
         values = rollout[:, 5]
 
         # The advantage function uses "Generalized Advantage Estimation"
@@ -62,13 +63,24 @@ class Worker():
             policy_target = advantages
 
         if FLAGS.lstm:
-            rnn_state = self.local_AC.state_init
-            feed_dict = {self.local_AC.target_v: discounted_rewards,
-                         self.local_AC.inputs: np.stack(observations, axis=0),
-                         self.local_AC.actions: actions,
-                         self.local_AC.advantages: policy_target,
-                         self.local_AC.state_in[0]: rnn_state[0],
-                         self.local_AC.state_in[1]: rnn_state[1]}
+            if FLAGS.meta:
+                rnn_state = self.local_AC.state_init
+                feed_dict = {self.local_AC.target_v: discounted_rewards,
+                             self.local_AC.prev_rewards: np.vstack(prev_rewards),
+                             self.local_AC.prev_actions: prev_actions,
+                             self.local_AC.actions: actions,
+                             self.local_AC.inputs: np.stack(observations, axis=0),
+                             self.local_AC.advantages: policy_target,
+                             self.local_AC.state_in[0]: rnn_state[0],
+                             self.local_AC.state_in[1]: rnn_state[1]}
+            else:
+                rnn_state = self.local_AC.state_init
+                feed_dict = {self.local_AC.target_v: discounted_rewards,
+                             self.local_AC.inputs: np.stack(observations, axis=0),
+                             self.local_AC.actions: actions,
+                             self.local_AC.advantages: policy_target,
+                             self.local_AC.state_in[0]: rnn_state[0],
+                             self.local_AC.state_in[1]: rnn_state[1]}
         else:
             feed_dict = {self.local_AC.target_v: discounted_rewards,
                          self.local_AC.inputs: np.stack(observations, axis=0),
@@ -112,8 +124,10 @@ class Worker():
                 episode_reward = 0
                 episode_step_count = 0
                 d = False
-                # if self.name == 'worker_0':
-                #     print("Episode {}".format(episode_count))
+
+                if FLAGS.meta:
+                    r = 0
+                    a = 0
 
                 s = self.env.get_initial_state()
                 episode_frames.append(s)
@@ -122,9 +136,17 @@ class Worker():
 
                 while not d:
                     if FLAGS.lstm:
-                        feed_dict = {self.local_AC.inputs: [s],
-                                     self.local_AC.state_in[0]: rnn_state[0],
-                                     self.local_AC.state_in[1]: rnn_state[1]}
+                        if FLAGS.meta:
+                            feed_dict = {
+                                self.local_AC.prev_rewards: [[r]],
+                                self.local_AC.inputs: [[s]],
+                                self.local_AC.prev_actions: [a],
+                                self.local_AC.state_in[0]: rnn_state[0],
+                                self.local_AC.state_in[1]: rnn_state[1]}
+                        else:
+                            feed_dict = {self.local_AC.inputs: [s],
+                                         self.local_AC.state_in[0]: rnn_state[0],
+                                         self.local_AC.state_in[1]: rnn_state[1]}
 
                         pi, v, rnn_state = self.sess.run(
                             [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out],
@@ -158,9 +180,17 @@ class Worker():
 
                     if len(episode_buffer) == FLAGS.max_episode_buffer_size and not d:
                         if FLAGS.lstm:
-                            feed_dict = {self.local_AC.inputs: [s],
-                                         self.local_AC.state_in[0]: rnn_state[0],
-                                         self.local_AC.state_in[1]: rnn_state[1]}
+                            if FLAGS.meta:
+                                feed_dict = {
+                                    self.local_AC.prev_rewards: [[r]],
+                                    self.local_AC.inputs: [[s]],
+                                    self.local_AC.prev_actions: [a],
+                                    self.local_AC.state_in[0]: rnn_state[0],
+                                    self.local_AC.state_in[1]: rnn_state[1]}
+                            else:
+                                feed_dict = {self.local_AC.inputs: [s],
+                                             self.local_AC.state_in[0]: rnn_state[0],
+                                             self.local_AC.state_in[1]: rnn_state[1]}
                             v1 = self.sess.run(self.local_AC.value,
                                                feed_dict=feed_dict)[0, 0]
                         else:

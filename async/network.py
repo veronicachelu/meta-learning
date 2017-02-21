@@ -12,6 +12,7 @@ FLAGS = tf.app.flags.FLAGS
 class ACNetwork:
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
+
             self.inputs = tf.placeholder(
                 shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
                 name="Input")

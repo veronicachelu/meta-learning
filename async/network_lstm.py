@@ -12,6 +12,12 @@ FLAGS = tf.app.flags.FLAGS
 class ACNetworkLSTM:
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
+            if FLAGS.meta:
+                self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
+                self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
+                self.prev_actions_onehot = tf.one_hot(self.prev_actions, nb_actions, dtype=tf.float32,
+                                                      name="Prev_Actions_OneHot")
+
             self.inputs = tf.placeholder(
                 shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
                 name="Input")
@@ -27,6 +33,10 @@ class ACNetworkLSTM:
                 num_outputs=64,
                 scope="fc1")
 
+            if FLAGS.meta:
+                hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, hidden],
+                                   name="Concatenated_input")
+
             summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
             summary_conv2_act = tf.contrib.layers.summarize_activation(conv2)
             summary_linear_act = tf.contrib.layers.summarize_activation(hidden)
@@ -35,11 +45,11 @@ class ACNetworkLSTM:
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
             self.state_init = [c_init, h_init]
-            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
-            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
+            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
+            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
             self.state_in = (c_in, h_in)
 
-            rnn_in = tf.expand_dims(hidden, [0])
+            rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
             step_size = tf.shape(self.inputs)[:1]
             state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
 
@@ -49,7 +59,7 @@ class ACNetworkLSTM:
             lstm_c, lstm_h = lstm_state
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
 
-            rnn_out = tf.reshape(lstm_outputs, [-1, 32])
+            rnn_out = tf.reshape(lstm_outputs, [-1, 32], name="RNN_out")
 
             self.policy = tf.contrib.layers.fully_connected(rnn_out, nb_actions, activation_fn=None, scope="policy")
             self.policy = tf.nn.softmax(self.policy, name="policy") + 1e-8
@@ -64,8 +74,8 @@ class ACNetworkLSTM:
             summary_value_act = tf.contrib.layers.summarize_activation(self.value)
 
             if scope != 'global':
-                self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
-                self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32)
+                self.actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
+                self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32, name="Actions_Onehot")
                 self.target_v = tf.placeholder(shape=[None], dtype=tf.float32)
                 self.advantages = tf.placeholder(shape=[None], dtype=tf.float32)
 
