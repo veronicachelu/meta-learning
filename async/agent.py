@@ -131,8 +131,9 @@ class Worker():
 
                 s, info = self.env.get_initial_state()
 
-                if FLAGS.verbose:
-                    print("Episode {}. Game dynamics - flip {}".format(episode_count, info["flip"]))
+                if FLAGS.verbose and self.name == 'worker_0':
+                    print("Episode {}. Game dynamics - meta_level {}, flip {}".format(episode_count, info["meta_level"],
+                                                                                      info["flip"]))
 
                 episode_frames.append(s)
                 if FLAGS.lstm:

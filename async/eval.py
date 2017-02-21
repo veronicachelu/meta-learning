@@ -39,7 +39,8 @@ class PolicyMonitor(object):
             d = False
             s, info = self.env.get_initial_state()
             if FLAGS.verbose:
-                print("Episode {}. Game dynamics - flip {}".format(episode_count, info["flip"]))
+                print("Episode {}. Game dynamics - meta_level {}, flip {}".format(episode_count, info["meta_level"],
+                                                                                      info["flip"]))
             if FLAGS.meta:
                 r = 0
                 a = 0

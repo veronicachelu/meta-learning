@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Catcher-Level0-MetaLevel0-v0',
+tf.app.flags.DEFINE_string('game', 'Catcher-Level0-MetaLevel2-v0',
                            """Experiment name from Atari platform""")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
@@ -37,7 +37,7 @@ tf.app.flags.DEFINE_boolean('lstm', True,
 tf.app.flags.DEFINE_boolean('gen_adv', False,
                             """Whether to use generalized advantage estimator or not""")
 tf.flags.DEFINE_integer("eval_every", 10, "Evaluate the policy every N seconds")
-tf.app.flags.DEFINE_boolean('meta', False,
+tf.app.flags.DEFINE_boolean('meta', True,
                             """Whether to use meta-learning or not""")
 tf.app.flags.DEFINE_boolean('verbose', False,
                             """Whether to display information about game dynamics""")
