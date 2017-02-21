@@ -1,4 +1,4 @@
-tensorflow==0.12.1
+tensorflow==1.0.0
 numpy==1.11.3
 moviepy==0.2.2.12
 Pillow==4.0.0

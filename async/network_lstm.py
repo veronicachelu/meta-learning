@@ -34,7 +34,7 @@ class ACNetworkLSTM:
                 scope="fc1")
 
             if FLAGS.meta:
-                hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, hidden],
+                hidden = tf.concat([self.prev_rewards, self.prev_actions_onehot, hidden], 1,
                                    name="Concatenated_input")
 
             summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)

@@ -38,7 +38,9 @@ class PolicyMonitor(object):
             # Run an episode
             d = False
             s = self.env.get_initial_state()
-
+            if FLAGS.meta:
+                r = 0
+                a = 0
             total_reward = 0.0
             episode_length = 0
 
@@ -47,9 +49,17 @@ class PolicyMonitor(object):
 
             while not d:
                 if FLAGS.lstm:
-                    feed_dict = {self.local_AC.inputs: [s],
-                                 self.local_AC.state_in[0]: rnn_state[0],
-                                 self.local_AC.state_in[1]: rnn_state[1]}
+                    if FLAGS.meta:
+                        feed_dict = {
+                            self.local_AC.prev_rewards: [[r]],
+                            self.local_AC.inputs: [s],
+                            self.local_AC.prev_actions: [a],
+                            self.local_AC.state_in[0]: rnn_state[0],
+                            self.local_AC.state_in[1]: rnn_state[1]}
+                    else:
+                        feed_dict = {self.local_AC.inputs: [s],
+                                     self.local_AC.state_in[0]: rnn_state[0],
+                                     self.local_AC.state_in[1]: rnn_state[1]}
 
                     pi, v, rnn_state = sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out],
