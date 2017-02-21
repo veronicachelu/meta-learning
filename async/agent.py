@@ -129,7 +129,11 @@ class Worker():
                     r = 0
                     a = 0
 
-                s = self.env.get_initial_state()
+                s, info = self.env.get_initial_state()
+
+                if FLAGS.verbose:
+                    print("Episode {}. Game dynamics - flip {}".format(episode_count, info["flip"]))
+
                 episode_frames.append(s)
                 if FLAGS.lstm:
                     rnn_state = self.local_AC.state_init

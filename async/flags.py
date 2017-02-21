@@ -37,5 +37,7 @@ tf.app.flags.DEFINE_boolean('lstm', True,
 tf.app.flags.DEFINE_boolean('gen_adv', False,
                             """Whether to use generalized advantage estimator or not""")
 tf.flags.DEFINE_integer("eval_every", 10, "Evaluate the policy every N seconds")
-tf.app.flags.DEFINE_boolean('meta', True,
+tf.app.flags.DEFINE_boolean('meta', False,
                             """Whether to use meta-learning or not""")
+tf.app.flags.DEFINE_boolean('verbose', False,
+                            """Whether to display information about game dynamics""")
