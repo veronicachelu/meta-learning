@@ -1,4 +1,5 @@
 import threading
+import multiprocessing
 from threading import Lock
 import gym
 from gym import wrappers
@@ -8,6 +9,7 @@ import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
 from network import ACNetwork
+from network_lstm import ACNetworkLSTM
 from eval import PolicyMonitor
 import flags
 
@@ -47,7 +49,8 @@ def run():
             # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
             optimizer = tf.train.RMSPropOptimizer(FLAGS.lr, 0.99, 0.0, 1e-6)
 
-            num_workers = FLAGS.nb_concurrent
+            # num_workers = FLAGS.nb_concurrent
+            num_workers = multiprocessing.cpu_count() - 1
             workers = []
             envs = []
 
@@ -64,7 +67,10 @@ def run():
                 envs.append(this_env)
             nb_actions = len(envs[0].gym_actions)
 
-            global_network = ACNetwork('global', nb_actions, None)
+            if FLAGS.lstm:
+                global_network = ACNetworkLSTM('global', nb_actions, None)
+            else:
+                global_network = ACNetwork('global', nb_actions, None)
 
             for i in range(num_workers):
                 workers.append(Worker(envs[i], sess, i, nb_actions, optimizer, global_step))

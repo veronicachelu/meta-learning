@@ -9,6 +9,7 @@ import time
 from gym.wrappers import Monitor
 from atari_environment import AtariEnvironment
 from network import ACNetwork
+from network_lstm import ACNetworkLSTM
 from utils import update_target_graph
 import gym
 import flags
@@ -18,7 +19,10 @@ FLAGS = tf.app.flags.FLAGS
 class PolicyMonitor(object):
     def __init__(self, game, nb_actions, optimizer, global_step):
         self.name = "policy_eval"
-        self.local_AC = ACNetwork(self.name, nb_actions, optimizer)
+        if FLAGS.lstm:
+            self.local_AC = ACNetworkLSTM(self.name, nb_actions, optimizer)
+        else:
+            self.local_AC = ACNetwork(self.name, nb_actions, optimizer)
         self.update_local_ops = update_target_graph('global', self.name)
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/policy_eval")
         self.env = game
@@ -37,11 +41,24 @@ class PolicyMonitor(object):
 
             total_reward = 0.0
             episode_length = 0
+
+            if FLAGS.lstm:
+                rnn_state = self.local_AC.state_init
+
             while not d:
-                feed_dict = {self.local_AC.inputs: [s]}
-                pi, v = sess.run(
-                    [self.local_AC.policy, self.local_AC.value],
-                    feed_dict=feed_dict)
+                if FLAGS.lstm:
+                    feed_dict = {self.local_AC.inputs: [s],
+                                 self.local_AC.state_in[0]: rnn_state[0],
+                                 self.local_AC.state_in[1]: rnn_state[1]}
+
+                    pi, v, rnn_state = sess.run(
+                        [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out],
+                        feed_dict=feed_dict)
+                else:
+                    feed_dict = {self.local_AC.inputs: [s]}
+                    pi, v = sess.run(
+                        [self.local_AC.policy, self.local_AC.value],
+                        feed_dict=feed_dict)
 
                 a = np.random.choice(pi[0], p=pi[0])
                 a = np.argmax(pi == a)

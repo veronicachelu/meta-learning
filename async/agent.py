@@ -3,6 +3,8 @@ from threading import Lock
 import numpy as np
 import tensorflow as tf
 from network import ACNetwork
+from network_lstm import ACNetworkLSTM
+
 from utils import update_target_graph, discount
 import flags
 import random
@@ -31,7 +33,11 @@ class Worker():
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
-        self.local_AC = ACNetwork(self.name, nb_actions, optimizer)
+        if FLAGS.lstm:
+            self.local_AC = ACNetworkLSTM(self.name, nb_actions, optimizer)
+        else:
+            self.local_AC = ACNetwork(self.name, nb_actions, optimizer)
+
         self.update_local_ops = update_target_graph('global', self.name)
 
         self.actions = np.zeros([nb_actions])

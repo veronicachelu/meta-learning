@@ -9,7 +9,7 @@ from utils import normalized_columns_initializer
 FLAGS = tf.app.flags.FLAGS
 
 
-class ACNetwork():
+class ACNetwork:
     def __init__(self, scope, nb_actions, trainer):
         with tf.variable_scope(scope):
             self.inputs = tf.placeholder(
