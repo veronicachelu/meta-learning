@@ -16,6 +16,7 @@ import flags
 
 FLAGS = tf.app.flags.FLAGS
 
+
 class PolicyMonitor(object):
     def __init__(self, game, nb_actions, optimizer, global_step):
         self.name = "policy_eval"
@@ -29,7 +30,18 @@ class PolicyMonitor(object):
         self.actions = np.zeros([nb_actions])
         self.global_episode = global_step
 
-    def eval_once(self, sess):
+    def eval_1000(self, sess):
+        rewards = []
+        for i in range(1000):
+            episode_reward, _ = self.eval_once(sess, False)
+            rewards.append(episode_reward)
+        episode_count = sess.run(self.global_episode)
+        print("Rewards 1000 : {}".format(rewards))
+        print(
+            "Total eval results won games with 1 {}/1000, games with -1 {}/1000, games with 0 {}/1000 after {} of training".format(
+                rewards.count(1), rewards.count(-1), rewards.count(0), episode_count))
+
+    def eval_once(self, sess, summaries=True):
         with sess.as_default(), sess.graph.as_default():
             # Copy params to local model
             episode_count = sess.run(self.global_episode)
@@ -40,7 +52,7 @@ class PolicyMonitor(object):
             s, info = self.env.get_initial_state()
             if FLAGS.verbose:
                 print("Episode {}. Game dynamics - meta_level {}, flip {}".format(episode_count, info["meta_level"],
-                                                                                      info["flip"]))
+                                                                                  info["flip"]))
             if FLAGS.meta:
                 r = 0
                 a = 0
@@ -82,16 +94,17 @@ class PolicyMonitor(object):
                 episode_length += 1
                 s = s1
 
-            # Add summaries
-            episode_summary = tf.Summary()
-            episode_summary.value.add(simple_value=total_reward, tag="eval/total_reward")
-            episode_summary.value.add(simple_value=episode_length, tag="eval/episode_length")
-            self.summary_writer.add_summary(episode_summary, episode_count)
-            self.summary_writer.flush()
+            if summaries:
+                # Add summaries
+                episode_summary = tf.Summary()
+                episode_summary.value.add(simple_value=total_reward, tag="eval/total_reward")
+                episode_summary.value.add(simple_value=episode_length, tag="eval/episode_length")
+                self.summary_writer.add_summary(episode_summary, episode_count)
+                self.summary_writer.flush()
 
-            tf.logging.info(
-                "Eval results at step {}: total_reward {}, episode_length {}".format(episode_count, total_reward,
-                                                                                     episode_length))
+                tf.logging.info(
+                    "Eval results at step {}: total_reward {}, episode_length {}".format(episode_count, total_reward,
+                                                                                         episode_length))
 
             return total_reward, episode_length
 
