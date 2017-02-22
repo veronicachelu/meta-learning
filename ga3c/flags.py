@@ -3,7 +3,7 @@ import tensorflow as tf
 # Basic model parameters.
 tf.app.flags.DEFINE_string('game', 'Catcher-Level0-MetaLevel0-v0',
                            """Experiment name from Atari platform""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
@@ -41,3 +41,11 @@ tf.app.flags.DEFINE_boolean('meta', False,
                             """Whether to use meta-learning or not""")
 tf.app.flags.DEFINE_boolean('verbose', False,
                             """Whether to display information about game dynamics""")
+tf.flags.DEFINE_integer("max_queue_size", 100, "Maximum size of the prediction and training queues")
+tf.flags.DEFINE_integer("nb_predictors", 2, "nb_predictors")
+tf.flags.DEFINE_integer("nb_trainers", 2, "nb_trainers")
+tf.flags.DEFINE_integer("prediction_batch_size", 128, "prediction batch size")
+tf.flags.DEFINE_integer("training_min_batch_size", 0, "prediction batch size")
+
+
+

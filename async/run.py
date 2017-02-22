@@ -51,8 +51,8 @@ def run():
             # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
             optimizer = tf.train.RMSPropOptimizer(FLAGS.lr, 0.99, 0.0, 1e-6)
 
-            # num_workers = FLAGS.nb_concurrent
-            num_workers = multiprocessing.cpu_count() - 1
+            num_workers = FLAGS.nb_concurrent
+            #num_workers = multiprocessing.cpu_count() - 1
             workers = []
             envs = []
 
