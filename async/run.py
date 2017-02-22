@@ -4,7 +4,7 @@ from threading import Lock
 import gym
 from gym import wrappers
 import gym_fast_envs
-#import gym_ple
+# import gym_ple
 import tensorflow as tf
 from agent import Worker
 from atari_environment import AtariEnvironment
@@ -16,6 +16,8 @@ import flags
 FLAGS = tf.app.flags.FLAGS
 
 main_lock = Lock()
+
+
 def recreate_directory_structure():
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
         tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
@@ -79,8 +81,8 @@ def run():
             gym_env_monitor = gym.make(FLAGS.game)
             gym_env_monitor.seed(FLAGS.seed)
             gym_env_monitor_wrapper = AtariEnvironment(gym_env=gym_env_monitor, resized_width=FLAGS.resized_width,
-                                        resized_height=FLAGS.resized_height,
-                                        agent_history_length=FLAGS.agent_history_length)
+                                                       resized_height=FLAGS.resized_height,
+                                                       agent_history_length=FLAGS.agent_history_length)
             nb_actions = len(gym_env_monitor_wrapper.gym_actions)
             pe = PolicyMonitor(
                 game=gym_env_monitor_wrapper,
