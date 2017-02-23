@@ -4,7 +4,7 @@ from network import GACNetwork
 import numpy as np
 from predictor import Predictor
 from trainer import Trainer
-from Agent import Agent
+from agent import Agent
 from stats import Stats
 import time
 import flags
@@ -24,7 +24,7 @@ class Server:
         self.agents = []
         self.predictors = []
         self.trainers = []
-        self.stats = Stats(self)
+        self.stats = Stats()
 
     def run(self):
         self.stats.start()

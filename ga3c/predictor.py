@@ -24,7 +24,7 @@ class Predictor(Thread):
                 if not self.server.prediction_q.empty():
                     agents_ids[i], states[i] = self.server.prediction_q.get()
 
-            pi, v = self.server.predict(states)
+            pi, v = self.server.network.predict(states)
 
             for i in np.arange(len(states)):
                 self.server.agents[agents_ids[i]].wait_q.put((pi[i], v[i]))

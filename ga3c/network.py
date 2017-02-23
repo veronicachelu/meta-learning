@@ -51,20 +51,17 @@ class GACNetwork:
 
                 # Loss functions
                 self.value_loss = tf.reduce_sum(tf.square(self.discounted_returns - self.value))
-                self.summaries('Losses/Value Loss', tf.summary.scalar(self.value_loss))
+                self.summaries.append(tf.summary.scalar('Losses/Value Loss', self.value_loss))
 
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
-                self.summaries('Losses/Entropy', tf.summary.scalar(self.entropy))
+                self.summaries.append(tf.summary.scalar('Losses/Entropy', self.entropy))
 
                 self.policy_loss = -tf.reduce_sum(
                     tf.log(self.responsible_outputs) * (self.discounted_returns - tf.stop_gradient(self.value)))
-                self.summaries('Losses/Policy Loss', tf.summary.scalar(self.policy_loss))
+                self.summaries.append(tf.summary.scalar('Losses/Policy Loss', self.policy_loss))
 
                 self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
-                self.summaries('Losses/Total Loss', tf.summary.scalar(self.policy_loss))
-
-                self.summary_op = tf.summary.merge(self.summaries)
-                self.log_writer = tf.summary.FileWriter(FLAGS.summaries_dir, self.sess.graph)
+                self.summaries.append(tf.summary.scalar('Losses/Total Loss', self.policy_loss))
 
                 self.optimizer = tf.train.RMSPropOptimizer(FLAGS.lr, 0.99, 0.0, 0.1)
                 self.gradients = self.optimizer.compute_gradients(self.loss)
@@ -79,6 +76,10 @@ class GACNetwork:
                         log_device_placement=False,
                         gpu_options=tf.GPUOptions(allow_growth=True)))
                 saver = tf.train.Saver(max_to_keep=5)
+                
+                self.summary_op = tf.summary.merge(self.summaries)
+                self.log_writer = tf.summary.FileWriter(FLAGS.summaries_dir, self.sess.graph)
+
 
                 if FLAGS.resume:
                     ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)

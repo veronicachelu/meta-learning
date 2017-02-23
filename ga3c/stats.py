@@ -10,7 +10,7 @@ from scipy.signal import lfilter
 FLAGS = tf.app.flags.FLAGS
 
 class Stats(Process):
-    def __init__(self, id, prediction_q, training_q, episode_log_q):
+    def __init__(self):
         super(Stats, self).__init__()
 
         self.episode_log_q = Queue(maxsize=100)
