@@ -17,16 +17,12 @@ class Trainer(Thread):
         while not self.stop:
             batch_size = 0
             while batch_size <= FLAGS.training_min_batch_size:
-                states, rewards, actions = self.server.training_q.get()
+                updated_episode_buffer = self.server.training_q.get()
                 if batch_size == 0:
-                    batch_states = states
-                    batch_rewards = rewards
-                    batch_actions = actions
+                    batch_episode_buffer = updated_episode_buffer
                 else:
-                    batch_states.extend(states)
-                    batch_rewards.extend(rewards)
-                    batch_actions.extend(actions)
-                batch_size += states.shape[0]
+                    batch_episode_buffer.extend(updated_episode_buffer)
+                batch_size += updated_episode_buffer.shape[0]
 
-            self.server.train(batch_states, batch_rewards, batch_actions, self.id)
+            self.server.train(updated_episode_buffer, self.id)
 

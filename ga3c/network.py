@@ -22,8 +22,9 @@ class GACNetwork:
                     shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length],
                     dtype=tf.float32,
                     name="Input")
-                self.rewards = tf.placeholder(tf.float32, [None], name='Reward')
-                self.actions_onehot = tf.placeholder(tf.float32, [None, self.nb_actions])
+                self.discounted_returns = tf.placeholder(tf.float32, [None], name='Return')
+                self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
+                self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32)
 
                 conv1 = tf.contrib.layers.conv2d(
                     self.inputs, 16, 5, 2, activation_fn=tf.nn.relu, scope="conv1")
@@ -51,7 +52,7 @@ class GACNetwork:
                 self.value_loss = tf.reduce_sum(tf.square(self.rewards - self.value))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
                 self.policy_loss = -tf.reduce_sum(
-                    tf.log(self.responsible_outputs) * (self.rewards - tf.stop_gradient(self.value)))
+                    tf.log(self.responsible_outputs) * (self.discounted_returns - tf.stop_gradient(self.value)))
 
                 self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
 
@@ -87,6 +88,24 @@ class GACNetwork:
             [self.policy, self.value],
             feed_dict=feed_dict)
         return pi, v
+
+    def train(self, rollout, trainer_id):
+        rollout = np.array(rollout)
+        observations = rollout[:, 0]
+        actions = rollout[:, 1]
+        pis = rollout[:, 2]
+        rewards = rollout[:, 3]
+        next_observations = rollout[:, 4]
+        values = rollout[:, 5]
+        discounted_returns = rollout[: 6]
+
+        feed_dict = {self.inputs: np.stack(observations, axis=0),
+                     self.discounted_returns: discounted_returns,
+                     self.actions: actions}
+
+        self.sess.run(self.apply_grads, feed_dict=feed_dict)
+
+
 
 
 

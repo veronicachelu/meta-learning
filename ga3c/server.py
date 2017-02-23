@@ -34,8 +34,8 @@ class Server:
             self.agents.append(Agent(self, i))
             self.agents[-1].start()
 
-    def train(self, batch_states, batch_rewards, batch_actions, trainer_id):
-        self.network.train(batch_states, batch_rewards, batch_actions, trainer_id)
+    def train(self, updated_episode_buffer, trainer_id):
+        self.network.train(updated_episode_buffer, trainer_id)
         self.training_step += 1
-        self.frame_counter += batch_states.shape[0]
+        self.frame_counter += updated_episode_buffer.shape[0]
         self.network.increment_global_step()

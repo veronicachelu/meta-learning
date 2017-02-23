@@ -11,6 +11,7 @@ from atari_environment import AtariEnvironment
 from network import ACNetwork
 from network_lstm import ACNetworkLSTM
 from eval import PolicyMonitor
+from server import Server
 import flags
 
 FLAGS = tf.app.flags.FLAGS
@@ -40,7 +41,7 @@ def recreate_directory_structure():
 
 def run():
     recreate_directory_structure()
-
+    Server().run()
 
 if __name__ == '__main__':
     run()
