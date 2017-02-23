@@ -10,12 +10,13 @@ from scipy.signal import lfilter
 FLAGS = tf.app.flags.FLAGS
 
 class Agent(Process):
-    def __init__(self, id, prediction_q, training_q):
+    def __init__(self, id, prediction_q, training_q, episode_log_q):
         super(Agent, self).__init__()
 
         self.id = id
         self.prediction_q = prediction_q
         self.training_q = training_q
+        self.episode_log_q = episode_log_q
 
         gym_env = gym.make(FLAGS.game)
         gym_env.seed(FLAGS.seed)
@@ -34,8 +35,9 @@ class Agent(Process):
         while not self.stop.value:
             # total_reward = 0
             # total_length = 0
-            for episode_buffer in self.run_episode_generator():
+            for episode_buffer, episode_reward, episode_length in self.run_episode_generator():
                 self.training_q.put(episode_buffer)
+            self.episode_log_q.put([datetime.now(), episode_reward, episode_length])
 
     def run_episode_generator(self):
         s, _ = self.env.get_initial_state()
@@ -64,13 +66,13 @@ class Agent(Process):
                 self.prediction_q.put((self.id, s))
                 pi, v1 = self.wait_q.get()
                 updated_episode_buffer = self.get_training_data(episode_buffer, v1)
-                yield updated_episode_buffer
+                yield updated_episode_buffer, episode_reward, episode_step_count
             if d:
                 break
 
         if len(episode_buffer) != 0:
             updated_episode_buffer = self.get_training_data(episode_buffer, 0)
-            yield updated_episode_buffer
+            yield updated_episode_buffer, episode_reward, episode_step_count
 
     def discount(self, x):
         return lfilter([1], [1, -FLAGS.gamma], x[::-1], axis=0)[::-1]
