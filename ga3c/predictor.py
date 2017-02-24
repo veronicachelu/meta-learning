@@ -2,11 +2,12 @@ from threading import Thread
 import tensorflow as tf
 import numpy as np
 import flags
+import time
 FLAGS = tf.app.flags.FLAGS
 
 class Predictor(Thread):
     def __init__(self, server, thread_id):
-        super(Predictor, self).__init__()
+        super(Predictor, self).__init__(name="Predictor_{}".format(thread_id))
         self.setDaemon(True)
 
         self.id = thread_id
@@ -21,11 +22,15 @@ class Predictor(Thread):
 
         while not self.stop:
             for i in np.arange(FLAGS.prediction_batch_size):
-                if not self.server.prediction_q.empty():
-                    agents_ids[i], states[i] = self.server.prediction_q.get()
+                if self.server.prediction_q.empty():
+                    break
+                print("Predictor_{} gets a new prediction form the prediction queue".format(self.id))
+                agents_ids[i], states[i] = self.server.prediction_q.get()
 
-            pi, v = self.server.network.predict(states)
+            if i > 0:
+                pi, v = self.server.network.predict(states[:i])
 
-            for i in np.arange(len(states)):
-                self.server.agents[agents_ids[i]].wait_q.put((pi[i], v[i]))
-
+                for j in np.arange(i):
+                    print("Predictor_{} puts a new prediction in the agent {} wait queue".format(self.id, agents_ids[j]))
+                    self.server.agents[agents_ids[j]].wait_q.put((pi[j], v[j]))
+            time.sleep(0.01)

@@ -11,6 +11,7 @@ from atari_environment import AtariEnvironment
 from network import ACNetwork
 from network_lstm import ACNetworkLSTM
 from eval import PolicyMonitor
+from tensorflow.python import debug as tf_debug
 import flags
 
 FLAGS = tf.app.flags.FLAGS
@@ -45,7 +46,10 @@ def run():
     recreate_directory_structure()
     tf.reset_default_graph()
 
-    with tf.Session() as sess:
+    sess = tf.Session()
+    # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+    # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
+    with sess:
         with tf.device("/cpu:0"):
             global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
             # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)

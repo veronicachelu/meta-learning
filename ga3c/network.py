@@ -50,14 +50,14 @@ class GACNetwork:
                 self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
                 # Loss functions
-                self.value_loss = tf.reduce_sum(tf.square(self.discounted_returns - self.value))
+                self.value_loss = tf.reduce_sum(tf.square(self.discounted_returns - self.value), name="value_loss")
                 self.summaries.append(tf.summary.scalar('Losses/Value Loss', self.value_loss))
 
-                self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
+                self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy), name="entropy")
                 self.summaries.append(tf.summary.scalar('Losses/Entropy', self.entropy))
 
                 self.policy_loss = -tf.reduce_sum(
-                    tf.log(self.responsible_outputs) * (self.discounted_returns - tf.stop_gradient(self.value)))
+                    tf.log(self.responsible_outputs) * (self.discounted_returns - tf.stop_gradient(self.value)), name="policy_loss")
                 self.summaries.append(tf.summary.scalar('Losses/Policy Loss', self.policy_loss))
 
                 self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
@@ -90,6 +90,22 @@ class GACNetwork:
 
     def increment_global_step(self):
         self.sess.run(self.increment_global_step)
+
+    def log(self, rollout):
+        rollout = np.array(rollout)
+        observations = rollout[:, 0]
+        actions = rollout[:, 1]
+        pis = rollout[:, 2]
+        rewards = rollout[:, 3]
+        next_observations = rollout[:, 4]
+        values = rollout[:, 5]
+        discounted_returns = rollout[: 6]
+
+        feed_dict = {self.inputs: np.stack(observations, axis=0),
+                     self.discounted_returns: discounted_returns,
+                     self.actions: actions}
+        step, summary = self.sess.run([self.global_step, self.summary_op], feed_dict=feed_dict)
+        self.log_writer.add_summary(summary, step)
 
     def predict(self, s):
         feed_dict = {self.inputs: s}

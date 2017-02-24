@@ -11,7 +11,7 @@ FLAGS = tf.app.flags.FLAGS
 
 class Stats(Process):
     def __init__(self):
-        super(Stats, self).__init__()
+        super(Stats, self).__init__(name="Stats")
 
         self.episode_log_q = Queue(maxsize=100)
         self.episode_rewards = []
@@ -24,16 +24,21 @@ class Stats(Process):
 
     def run(self):
         while True:
+            print("Stats thread takes a tuple from the log queue. Episode count it {}".format(self.episode_count.value))
             time_of_reward, episode_reward, episode_length = self.episode_log_q.get()
             self.episode_rewards.append([time_of_reward, episode_reward, episode_length])
 
             self.episode_count.value += 1
 
             if self.episode_count.value % FLAGS.summary_interval:
+                print("Stats thread makes a new summary log")
                 mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
                 mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
 
                 self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                 self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
 
+                self.summary_writer.add_summary(self.summary, self.episode_count.value)
+                self.summary_writer.flush()
 
+            time.sleep(0.05)

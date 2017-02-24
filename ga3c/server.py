@@ -29,26 +29,30 @@ class Server:
     def run(self):
         self.stats.start()
 
+        for i in np.arange(FLAGS.nb_concurrent):
+            self.agents.append(Agent(i, self.prediction_q, self.training_q, self.stats.episode_log_q))
+            self.agents[-1].start()
+
         for i in np.arange(FLAGS.nb_trainers):
             self.trainers.append(Trainer(self, i))
             self.trainers[-1].start()
         for i in np.arange(FLAGS.nb_predictors):
             self.predictors.append(Predictor(self, i))
             self.predictors[-1].start()
-        for i in np.arange(FLAGS.nb_concurrent):
-            self.agents.append(Agent(self, i))
-            self.agents[-1].start()
+
 
         while True:
             if self.stats.episode_count.value % FLAGS.checkpoint_interval:
                 self.save_model()
-            time.sleep(0.01)
+            time.sleep(0.05)
 
     def train(self, updated_episode_buffer, trainer_id):
         self.network.train(updated_episode_buffer, trainer_id)
         self.training_step += 1
         self.frame_counter += updated_episode_buffer.shape[0]
         self.network.increment_global_step()
+        if self.stats.episode_count % FLAGS.summary_interval == 0:
+            self.network.log(updated_episode_buffer)
 
     def save_model(self):
         self.network.save(self.stats.episode_count.value)

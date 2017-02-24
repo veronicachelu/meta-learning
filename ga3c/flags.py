@@ -15,11 +15,11 @@ tf.app.flags.DEFINE_string('summaries_dir', './summaries',
                            """Directory where to write event logs""")
 tf.app.flags.DEFINE_string('experiments_dir', './experiments',
                            """Directory where to write event experiments""")
-tf.app.flags.DEFINE_integer('summary_interval', 200, """Number of episodes of interval between summary saves""")
+tf.app.flags.DEFINE_integer('summary_interval', 5, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('test_performance_interval', 1000,
                             """Number of episodes of interval between testing reward performance""")
-tf.app.flags.DEFINE_integer('checkpoint_interval', 500, """Number of episodes of interval between checkpoint saves""")
-tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
+tf.app.flags.DEFINE_integer('checkpoint_interval', 10, """Number of episodes of interval between checkpoint saves""")
+tf.app.flags.DEFINE_integer('nb_concurrent', 1, """Number of concurrent threads""")
 tf.app.flags.DEFINE_integer('max_episode_buffer_size', 4, """Buffer size between train updates""")
 tf.app.flags.DEFINE_integer('agent_history_length', 4, """Number of frames that makes every state""")
 tf.app.flags.DEFINE_integer('resized_width', 24, """Resized width of each frame""")
@@ -42,8 +42,8 @@ tf.app.flags.DEFINE_boolean('meta', False,
 tf.app.flags.DEFINE_boolean('verbose', False,
                             """Whether to display information about game dynamics""")
 tf.flags.DEFINE_integer("max_queue_size", 100, "Maximum size of the prediction and training queues")
-tf.flags.DEFINE_integer("nb_predictors", 2, "nb_predictors")
-tf.flags.DEFINE_integer("nb_trainers", 2, "nb_trainers")
+tf.flags.DEFINE_integer("nb_predictors", 1, "nb_predictors")
+tf.flags.DEFINE_integer("nb_trainers", 1, "nb_trainers")
 tf.flags.DEFINE_integer("prediction_batch_size", 128, "prediction batch size")
 tf.flags.DEFINE_integer("training_min_batch_size", 0, "prediction batch size")
 

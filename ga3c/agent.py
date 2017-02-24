@@ -7,12 +7,12 @@ import tensorflow as tf
 from atari_environment import AtariEnvironment
 import time
 from scipy.signal import lfilter
+import datetime
 FLAGS = tf.app.flags.FLAGS
 
 class Agent(Process):
     def __init__(self, id, prediction_q, training_q, episode_log_q):
-        super(Agent, self).__init__()
-
+        super(Agent, self).__init__(name="Agent_{}".format(id))
         self.id = id
         self.prediction_q = prediction_q
         self.training_q = training_q
@@ -33,10 +33,15 @@ class Agent(Process):
         time.sleep(np.random.rand())
 
         while not self.stop.value:
+            if FLAGS.verbose:
+                print("Agent_{} started a new episode".format(self.id))
             # total_reward = 0
             # total_length = 0
             for episode_buffer, episode_reward, episode_length in self.run_episode_generator():
+                if FLAGS.verbose:
+                    print("Agent_{} puts a new episode in the training queue".format(self.id))
                 self.training_q.put(episode_buffer)
+            print("Agent_{} fished an episode and logs the result in the logs queue".format(self.id))
             self.episode_log_q.put([datetime.now(), episode_reward, episode_length])
 
     def run_episode_generator(self):
