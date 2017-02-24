@@ -129,7 +129,7 @@ class Worker():
                     r = 0
                     a = 0
 
-                s, info = self.env.get_initial_state()
+                s = self.env.get_initial_state()
 
                 if FLAGS.verbose and self.name == 'worker_0':
                     print("Episode {}. Game dynamics - meta_level {}, flip {}".format(episode_count, info["meta_level"],
