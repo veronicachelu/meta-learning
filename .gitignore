@@ -113,7 +113,7 @@ checkpoints-38400
 checkpoints-38400.meta
 checkpoints/
 config.pyc
-dqn/
+
 network.pyc
 summaries/
 .DS_Store
