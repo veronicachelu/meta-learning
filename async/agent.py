@@ -224,8 +224,8 @@ class Worker():
                     else:
                         self.train(episode_buffer, 0.0)
 
-                if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
+                if episode_count % FLAGS.summary_interval == 0 and episode_count != 0 and self.name == 'worker_0':
+                    if episode_count % FLAGS.checkpoint_interval == 0 and FLAGS.train == True:
                         saver.save(self.sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
