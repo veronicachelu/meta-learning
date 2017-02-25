@@ -35,7 +35,7 @@ class ACNetwork:
                 grid = self.put_kernels_on_grid(weights)
                 for i in range(FLAGS.agent_history_length):
                     self.image_summaries.append(
-                        tf.summary.image('conv1/features/{}'.format(i), tf.expand_dims(grid[:, :, :, 0], axis=i),
+                        tf.summary.image('conv1/features/{}'.format(i), tf.expand_dims(grid[:, :, :, i], axis=3),
                                          max_outputs=1))
 
             summary_conv2_act = tf.contrib.layers.summarize_activation(conv2)

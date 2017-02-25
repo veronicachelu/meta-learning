@@ -37,13 +37,22 @@ class Agent():
         self.probability_of_random_action = FLAGS.initial_random_action_prob
         self.env = game
 
-    def update_target_graph(self, from_scope, to_scope):
+    def update_target_graph_tao(self, from_scope, to_scope):
         from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
         to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
 
         op_holder = []
         for from_var, to_var in zip(from_vars, to_vars):
             op_holder.append(to_var.assign((1 - FLAGS.TAO) * to_var.value() + FLAGS.TAO * from_var.value()))
+        return op_holder
+
+    def update_target_graph(self, from_scope, to_scope):
+        from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
+        to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
+
+        op_holder = []
+        for from_var, to_var in zip(from_vars, to_vars):
+            op_holder.append(to_var.assign(from_var))
         return op_holder
 
     def train(self):
@@ -92,18 +101,16 @@ class Agent():
         print("Starting agent")
         with self.sess.as_default(), self.graph.as_default():
             while total_steps < FLAGS.max_total_steps:
-                self.updateTarget()
+                if episode_count % FLAGS.update_target_estimator_every == 0:
+                    self.updateTarget()
                 episode_reward = 0
                 episode_step_count = 0
                 d = False
 
-                if FLAGS.show_training:
-                    env.render()
-
                 s = self.env.get_initial_state()
 
                 while not d:
-                    if (random.random() <= self.probability_of_random_action):
+                    if random.random() <= self.probability_of_random_action:
                         # choose an action randomly
                         a = self.env.env.action_space.sample()
                     else:
