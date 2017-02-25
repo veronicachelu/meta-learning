@@ -234,9 +234,9 @@ class Worker():
                     mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
                     mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
 
-                    if episode_count % FLAGS.test_performance_interval == 0:
-                        won_games = self.episode_rewards[-FLAGS.test_performance_interval:].count(1)
-                        self.summary.value.add(tag='Perf/Won Games/1000', simple_value=float(won_games))
+                    # if episode_count % FLAGS.test_performance_interval == 0:
+                    #     won_games = self.episode_rewards[-FLAGS.test_performance_interval:].count(1)
+                    #     self.summary.value.add(tag='Perf/Won Games/1000', simple_value=float(won_games))
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))

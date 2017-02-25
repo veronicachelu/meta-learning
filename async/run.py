@@ -83,18 +83,18 @@ def run():
                 workers.append(Worker(envs[i], sess, i, nb_actions, optimizer, global_step))
             saver = tf.train.Saver(max_to_keep=5)
 
-            gym_env_monitor = gym.make(FLAGS.game)
-            gym_env_monitor.seed(FLAGS.seed)
-            gym_env_monitor_wrapper = AtariEnvironment(gym_env=gym_env_monitor, resized_width=FLAGS.resized_width,
-                                                       resized_height=FLAGS.resized_height,
-                                                       agent_history_length=FLAGS.agent_history_length)
-            nb_actions = len(gym_env_monitor_wrapper.gym_actions)
-            pe = PolicyMonitor(
-                game=gym_env_monitor_wrapper,
-                nb_actions=nb_actions,
-                optimizer=optimizer,
-                global_step=global_step
-            )
+            # gym_env_monitor = gym.make(FLAGS.game)
+            # gym_env_monitor.seed(FLAGS.seed)
+            # gym_env_monitor_wrapper = AtariEnvironment(gym_env=gym_env_monitor, resized_width=FLAGS.resized_width,
+            #                                            resized_height=FLAGS.resized_height,
+            #                                            agent_history_length=FLAGS.agent_history_length)
+            # nb_actions = len(gym_env_monitor_wrapper.gym_actions)
+            # pe = PolicyMonitor(
+            #     game=gym_env_monitor_wrapper,
+            #     nb_actions=nb_actions,
+            #     optimizer=optimizer,
+            #     global_step=global_step
+            # )
 
         coord = tf.train.Coordinator()
         if FLAGS.resume:
@@ -111,8 +111,8 @@ def run():
             worker_threads.append(t)
 
         # Start a thread for policy eval task
-        monitor_thread = threading.Thread(target=lambda: pe.continuous_eval(FLAGS.eval_every, sess, coord))
-        monitor_thread.start()
+        # monitor_thread = threading.Thread(target=lambda: pe.continuous_eval(FLAGS.eval_every, sess, coord))
+        # monitor_thread.start()
         import time
         while True:
             if FLAGS.show_training:
