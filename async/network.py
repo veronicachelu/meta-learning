@@ -84,7 +84,7 @@ class ACNetwork:
 
                 self.worker_summaries = [summary_conv1_act, summary_conv2_act, summary_linear_act, summary_policy_act,
                                          summary_value_act]
-                for grad, weight in zip(self.gradients, local_vars):
+                for grad, weight in zip(grads, local_vars):
                     self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
                     self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
 
