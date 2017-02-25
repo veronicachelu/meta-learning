@@ -28,13 +28,13 @@ class AtariEnvironment(object):
         # Clear the state buffer
         self.state_buffer = deque()
 
-        x_t, d, r, info = self.env.reset()
+        x_t = self.env.reset()
         x_t = self.get_preprocessed_frame(x_t)
         s_t = np.stack((x_t, x_t, x_t, x_t), axis=2)
 
         for i in range(self.agent_history_length - 1):
             self.state_buffer.append(x_t)
-        return s_t, info
+        return s_t
 
     def get_preprocessed_frame(self, observation):
         # gray = 0.2125 * observation[..., 0]
@@ -43,11 +43,14 @@ class AtariEnvironment(object):
 
         #
         #     return gray
-        lum = Image.fromarray(observation)
-        lum = lum.convert('L')
 
-        lum = lum.resize((self.resized_width, self.resized_height))
-        pix = np.array(lum).astype(float) / 255
+        img = Image.fromarray(observation)
+        # lum = lum.convert('L')
+
+        img = img.resize((self.resized_width, self.resized_height))
+        pix = np.array(img).astype(float)
+        pix = np.dot(pix, [.2126, .7152, .0722])
+        pix = pix.astype(float) / 255
         # return self.color2gray(observation).resize((self.resized_width, self.resized_height))
         return pix
 
