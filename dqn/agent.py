@@ -80,15 +80,16 @@ class Agent():
         feed_dict = {self.q_net.target_q: target_actionv_values_evaled_new,
                      self.q_net.inputs: np.stack(observations, axis=0),
                      self.q_net.actions: actions}
-        l, _, ms = self.sess.run(
+        l, _, ms, img_summ = self.sess.run(
             [self.q_net.action_value_loss,
              self.q_net.train_operation,
-             self.q_net.merged_summary],
+             self.q_net.merged_summary,
+             self.q_net.image_summaries],
             feed_dict=feed_dict)
 
         self.updateTarget()
 
-        return l / len(rollout), ms
+        return l / len(rollout), ms, img_summ
 
     def updateTarget(self):
         for op in self.targetOps:
@@ -130,7 +131,7 @@ class Agent():
                         self.episode_buffer.popleft()
 
                     if total_steps > FLAGS.observation_steps:
-                        l, ms = self.train()
+                        l, ms, img_summ = self.train()
 
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
@@ -184,7 +185,8 @@ class Agent():
                         else:
                             print(
                                 'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
-
+                    for s in img_summ:
+                        self.summary_writer.add_summary(s, episode_count)
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()

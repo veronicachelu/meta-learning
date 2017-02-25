@@ -286,8 +286,8 @@ class Worker():
                         else:
                             print(
                                 'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
-
-                    self.summary_writer.add_summary(img_summ, episode_count)
+                    for s in img_summ:
+                        self.summary_writer.add_summary(s, episode_count)
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()
