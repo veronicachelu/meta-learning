@@ -77,10 +77,10 @@ class ACNetwork:
                 self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs) * self.advantages)
                 self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
 
-                self.grads_and_vars = self.optimizer.compute_gradients(self.loss)
-                local_grads, local_vars = zip(*self.grads_and_vars)
+                local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+                self.gradients = tf.gradients(self.loss, local_vars)
                 self.var_norms = tf.global_norm(local_vars)
-                local_grads, self.grad_norms = tf.clip_by_global_norm(local_grads, FLAGS.gradient_clip_value)
+                grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
                 self.worker_summaries = [summary_conv1_act, summary_conv2_act, summary_linear_act, summary_policy_act,
                                          summary_value_act]
@@ -91,7 +91,7 @@ class ACNetwork:
                 self.merged_summary = tf.summary.merge(self.worker_summaries)
 
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-                self.apply_grads = trainer.apply_gradients(zip(local_grads, global_vars), global_step=tf.contrib.framework.get_global_step())
+                self.apply_grads = trainer.apply_gradients(zip(grads, global_vars), global_step=tf.contrib.framework.get_global_step())
 
     def put_kernels_on_grid(self, kernel, pad=1):
 
