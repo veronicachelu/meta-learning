@@ -62,7 +62,8 @@ def run():
 
             for i in range(num_workers):
                 gym_env = gym.make(FLAGS.game)
-                gym_env.seed(FLAGS.seed)
+                if FLAGS.seed:
+                    gym_env.seed(FLAGS.seed)
 
                 if FLAGS.monitor:
                     gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))

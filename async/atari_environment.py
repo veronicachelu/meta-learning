@@ -43,11 +43,14 @@ class AtariEnvironment(object):
 
         #
         #     return gray
-        lum = Image.fromarray(observation)
-        lum = lum.convert('L')
 
-        lum = lum.resize((self.resized_width, self.resized_height))
-        pix = np.array(lum).astype(float) / 255
+        img = Image.fromarray(observation)
+        # lum = lum.convert('L')
+
+        img = img.resize((self.resized_width, self.resized_height))
+        pix = np.array(img).astype(float)
+        pix = np.dot(pix, [.2126, .7152, .0722])
+        pix = pix.astype(float) / 255
         # return self.color2gray(observation).resize((self.resized_width, self.resized_height))
         return pix
 

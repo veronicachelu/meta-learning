@@ -87,7 +87,7 @@ class Worker():
                          self.local_AC.actions: actions,
                          self.local_AC.advantages: policy_target}
         if summaries:
-            l, v_l, p_l, e_l, g_n, v_n, _, ms, max_v, min_v, mean_v, max_r, min_r, mean_r = self.sess.run(
+            l, v_l, p_l, e_l, g_n, v_n, _, ms, img_summ, max_v, min_v, mean_v, max_r, min_r, mean_r = self.sess.run(
                 [self.local_AC.loss,
                  self.local_AC.value_loss,
                  self.local_AC.policy_loss,
@@ -96,6 +96,7 @@ class Worker():
                  self.local_AC.var_norms,
                  self.local_AC.apply_grads,
                  self.local_AC.merged_summary,
+                 self.local_AC.image_summaries,
                  self.local_AC.max_value,
                  self.local_AC.min_value,
                  self.local_AC.mean_value,
@@ -104,7 +105,7 @@ class Worker():
                  self.local_AC.mean_reward],
                 feed_dict=feed_dict)
             return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(
-                rollout), g_n, v_n, ms, max_v, min_v, mean_v, max_r, min_r, mean_r
+                rollout), g_n, v_n, ms, img_summ, max_v, min_v, mean_v, max_r, min_r, mean_r
         else:
             _ = self.sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
         return None
@@ -203,7 +204,7 @@ class Worker():
                             v1 = self.sess.run(self.local_AC.value,
                                                feed_dict=feed_dict)[0, 0]
                         if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                            l, v_l, p_l, e_l, g_n, v_n, ms, max_v, min_v, mean_v, max_r, min_r, mean_r = self.train(
+                            l, v_l, p_l, e_l, g_n, v_n, ms, img_summ, max_v, min_v, mean_v, max_r, min_r, mean_r = self.train(
                                 episode_buffer, v1, summaries=True)
                         else:
                             self.train(episode_buffer, v1)
@@ -218,7 +219,7 @@ class Worker():
 
                 if len(episode_buffer) != 0:
                     if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                        l, v_l, p_l, e_l, g_n, v_n, ms, max_v, min_v, mean_v, max_r, min_r, mean_r = self.train(
+                        l, v_l, p_l, e_l, g_n, v_n, ms, img_summ, max_v, min_v, mean_v, max_r, min_r, mean_r = self.train(
                             episode_buffer, 0.0, summaries=True)
                     else:
                         self.train(episode_buffer, 0.0)
@@ -286,6 +287,7 @@ class Worker():
                             print(
                                 'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
 
+                    self.summary_writer.add_summary(img_summ, episode_count)
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()

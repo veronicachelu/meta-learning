@@ -40,6 +40,14 @@
     * ```--gradient_clip_value=```:  Clip the gradient of the weights if it overgrows this value. Default is ```40.0```.
     * ```--monitor=```:  Monitor test with gym monitor. Default is ```False```.
 
+## Example usage
+
+
+    $ python run.py --game="Breakout-v0" --nb_concurrent=8 --resized_width=84 --resized_height=84 --max_episode_buffer_size=5
+    --conv1_nb_kernels=16 --conv2_nb_kernels=32 --conv1_kernel_size=8 --conv2_kernel_size=4 --conv1_stride=4 --conv2_stride=2
+    --conv1_padding='VALID' --conv2_padding='VALID' --fc_size=256 --lr=0.00025
+
+
 ## Tensorboard visualizations
 
 * From ```summaries_dir``` run:
