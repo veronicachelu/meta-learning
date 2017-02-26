@@ -65,7 +65,7 @@ class Agent():
         done = rollout[:, 4]
 
         target_actionv_values_evaled = self.sess.run(self.target_net.action_values,
-                                                     feed_dict={self.target_net.inputs: np.stack(observations, axis=0)})
+                                                     feed_dict={self.target_net.inputs: np.stack(next_observations, axis=0)})
         target_actionv_values_evaled_max = np.max(target_actionv_values_evaled, axis=1)
 
         target_actionv_values_evaled_new = []
@@ -75,7 +75,7 @@ class Agent():
                 target_actionv_values_evaled_new.append(rewards[i])
             else:
                 target_actionv_values_evaled_new.append(
-                    rewards[i] + FLAGS.gamma * np.max(target_actionv_values_evaled_max[i]))
+                    rewards[i] + FLAGS.gamma * target_actionv_values_evaled_max[i])
 
         feed_dict = {self.q_net.target_q: target_actionv_values_evaled_new,
                      self.q_net.inputs: np.stack(observations, axis=0),
