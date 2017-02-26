@@ -113,7 +113,7 @@ class DQNetwork:
         # put NumKernels to the 1st dimension
         x2 = tf.transpose(x1, (3, 0, 1, 2))
         # organize grid on Y axis
-        x3 = tf.reshape(x2, tf.pack([grid_X, Y * grid_Y, X, channels]))
+        x3 = tf.reshape(x2, tf.stack([grid_X, Y * grid_Y, X, channels]))
 
         # switch X and Y axes
         x4 = tf.transpose(x3, (0, 2, 1, 3))
