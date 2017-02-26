@@ -113,7 +113,9 @@ class Agent():
                 while not d:
                     if random.random() <= self.probability_of_random_action:
                         # choose an action randomly
-                        a = self.env.env.action_space.sample()
+                        # a = self.env.env.action_space.sample()
+                        a = np.random.choice(self.env.gym_actions)
+
                     else:
                         feed_dict = {self.q_net.inputs: [s]}
                         action_values_evaled = self.sess.run(self.q_net.action_values, feed_dict=feed_dict)[0]

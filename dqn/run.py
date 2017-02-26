@@ -51,7 +51,8 @@ def run():
         global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
 
         gym_env = gym.make(FLAGS.game)
-        gym_env.seed(FLAGS.seed)
+        if FLAGS.seed:
+            gym_env.seed(FLAGS.seed)
 
         #if FLAGS.monitor:
         #    gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
