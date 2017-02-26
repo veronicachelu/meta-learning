@@ -138,7 +138,7 @@ class ACNetwork:
         # switch X and Y axes
         x4 = tf.transpose(x3, (0, 2, 1, 3))
         # organize grid on X axis
-        x5 = tf.reshape(x4, tf.pack([1, X * grid_X, Y * grid_Y, channels]))
+        x5 = tf.reshape(x4, tf.stack([1, X * grid_X, Y * grid_Y, channels]))
 
         # back to normal order (not combining with the next step for clarity)
         x6 = tf.transpose(x5, (2, 1, 3, 0))
