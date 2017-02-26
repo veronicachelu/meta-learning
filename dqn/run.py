@@ -53,8 +53,8 @@ def run():
         gym_env = gym.make(FLAGS.game)
         gym_env.seed(FLAGS.seed)
 
-        if FLAGS.monitor:
-            gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+        #if FLAGS.monitor:
+        #    gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
         env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
                                     resized_height=FLAGS.resized_height,
                                     agent_history_length=FLAGS.agent_history_length)
