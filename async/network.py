@@ -25,7 +25,10 @@ class ACNetwork:
             hidden = tf.contrib.layers.fully_connected(
                 inputs=tf.contrib.layers.flatten(conv2),
                 num_outputs=FLAGS.fc_size,
+                activation_fn=tf.nn.relu,
+                biases_initializer=tf.constant_initializer(0.0),
                 scope="fc1")
+
 
             summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
             self.image_summaries = []
