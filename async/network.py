@@ -24,7 +24,7 @@ class ACNetwork:
                 self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
                 activation_fn=tf.nn.elu, padding=FLAGS.conv1_padding,
                 weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
-                bias_initializer=tf.constant_initializer(0.0),
+                biases_initializer=tf.constant_initializer(0.0),
                 scope="conv1")
 
             fan_in = FLAGS.conv1_nb_kernels * FLAGS.conv2_kernel_size * FLAGS.conv2_kernel_size
@@ -34,7 +34,7 @@ class ACNetwork:
             conv2 = tf.contrib.layers.conv2d(
                 conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
                 weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
-                bias_initializer=tf.constant_initializer(0.0),
+                biases_initializer=tf.constant_initializer(0.0),
                 activation_fn=tf.nn.elu, scope="conv2")
 
             conv2_flatten = tf.contrib.layers.flatten(conv2)
