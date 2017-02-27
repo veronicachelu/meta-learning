@@ -25,12 +25,12 @@ class ACNetwork:
                 activation_fn=tf.nn.relu, scope="conv2")
 
             conv2_flatten = tf.contrib.layers.flatten(conv2)
-            head_size = conv2_flatten.get_shape().as_list()[1]
-            std = self.xavier_std(head_size, FLAGS.fc_size)
+            # head_size = conv2_flatten.get_shape().as_list()[1]
+            # std = self.xavier_std(head_size, FLAGS.fc_size)
 
             hidden = tf.contrib.layers.fully_connected(
                 inputs=conv2_flatten,
-                weights_initializer=tf.truncated_normal_initializer(std),
+                weights_initializer=tf.contrib.layers.xavier_initializer(),
                 num_outputs=FLAGS.fc_size,
                 activation_fn=tf.nn.relu,
                 biases_initializer=tf.constant_initializer(0.0),
@@ -106,7 +106,8 @@ class ACNetwork:
                 self.merged_summary = tf.summary.merge(self.worker_summaries)
 
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-                self.apply_grads = trainer.apply_gradients(zip(grads, global_vars), global_step=tf.contrib.framework.get_global_step())
+                self.apply_grads = trainer.apply_gradients(zip(grads, global_vars),
+                                                           global_step=tf.contrib.framework.get_global_step())
 
     def put_kernels_on_grid(self, kernel, pad=1):
 
