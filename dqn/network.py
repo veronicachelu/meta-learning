@@ -4,7 +4,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
+
 FLAGS = tf.app.flags.FLAGS
+
 
 class DQNetwork:
     def __init__(self, nb_actions, scope):
@@ -16,13 +18,20 @@ class DQNetwork:
 
             conv1 = tf.contrib.layers.conv2d(
                 self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
-                activation_fn=tf.nn.relu, padding=FLAGS.conv1_padding, scope="conv1")
+                activation_fn=tf.nn.relu, padding=FLAGS.conv1_padding,
+                weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(), scope="conv1")
             conv2 = tf.contrib.layers.conv2d(
                 conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
+                weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
                 activation_fn=tf.nn.relu, scope="conv2")
 
+            conv2_flatten = tf.contrib.layers.flatten(conv2)
+            head_size = conv2_flatten.get_shape().as_list()[1]
+            std = self.xavier_std(head_size, FLAGS.fc_size)
+
             hidden = tf.contrib.layers.fully_connected(
-                inputs=tf.contrib.layers.flatten(conv2),
+                inputs=conv2_flatten,
+                weights_initializer=tf.truncated_normal_initializer(std),
                 num_outputs=FLAGS.fc_size,
                 activation_fn=tf.nn.relu,
                 biases_initializer=tf.constant_initializer(0.0),
@@ -52,20 +61,22 @@ class DQNetwork:
 
             if scope != 'target':
 
-                self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
-                self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32)
-                self.target_q = tf.placeholder(shape=[None], dtype=tf.float32)
+                self.actions = tf.placeholder(shape=[None], dtype=tf.int32, name="actions")
+                self.actions_onehot = tf.one_hot(self.actions, nb_actions, dtype=tf.float32, name="actions_one_hot")
+                self.target_q = tf.placeholder(shape=[None], dtype=tf.float32, name="target_Q")
 
-                self.action_value = tf.reduce_sum(tf.multiply(self.action_values, self.actions_onehot), reduction_indices=1)
+                self.action_value = tf.reduce_sum(tf.multiply(self.action_values, self.actions_onehot),
+                                                  reduction_indices=1, name="Q")
 
                 # Loss functions
-                self.action_value_loss = tf.reduce_sum(tf.square(self.target_q - self.action_value))
+                self.action_value_loss = tf.reduce_sum(self.clipped_l2(self.target_q, self.action_value),
+                                                       name="DQN_loss")
 
-                self.optimizer = tf.train.AdamOptimizer(FLAGS.lr)
-                grads = tf.gradients(self.action_value_loss, tf.trainable_variables())
-                grads = list(zip(grads, tf.trainable_variables()))
+                self.train_operation, grads = self.graves_rmsprop_optimizer(self.action_value_loss, FLAGS.lr, 0.95, 0.01, 1)
+                # grads = tf.gradients(self.action_value_loss, tf.trainable_variables())
+                # grads = list(zip(grads, tf.trainable_variables()))
 
-                self.train_operation = self.optimizer.apply_gradients(grads)
+                # self.train_operation = self.optimizer.apply_gradients(grads)
 
                 self.summaries = [summary_conv1_act, summary_conv2_act, summary_linear_act, summary_action_value_act]
 
@@ -132,4 +143,58 @@ class DQNetwork:
         # scaling to [0, 255] is not necessary for tensorboard
         return x7
 
+    def xavier_std(self, in_size, out_size):
+        return np.sqrt(2. / (in_size + out_size))
 
+    def clipped_l2(self, y, y_t, grad_clip=1):
+        with tf.name_scope("clipped_l2"):
+            batch_delta = y - y_t
+            batch_delta_abs = tf.abs(batch_delta)
+            batch_delta_quadratic = tf.minimum(batch_delta_abs, grad_clip)
+            batch_delta_linear = (
+                                     batch_delta_abs - batch_delta_quadratic) * grad_clip
+            batch = batch_delta_linear + batch_delta_quadratic ** 2 / 2
+        return batch
+
+    def graves_rmsprop_optimizer(self, loss, learning_rate, rmsprop_decay, rmsprop_constant, gradient_clip):
+        with tf.name_scope('rmsprop'):
+            optimizer = None
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+
+            grads_and_vars = optimizer.compute_gradients(loss)
+
+            grads = []
+            params = []
+            for p in grads_and_vars:
+                if p[0] == None:
+                    continue
+                grads.append(p[0])
+                params.append(p[1])
+            # grads = [gv[0] for gv in grads_and_vars]
+            # params = [gv[1] for gv in grads_and_vars]
+            if gradient_clip > 0:
+                grads = tf.clip_by_global_norm(grads, gradient_clip)[0]
+
+            square_grads = [tf.square(grad) for grad in grads]
+
+            avg_grads = [tf.Variable(tf.zeros(var.get_shape()))
+                         for var in params]
+            avg_square_grads = [tf.Variable(
+                tf.zeros(var.get_shape())) for var in params]
+
+            update_avg_grads = [
+                grad_pair[0].assign((rmsprop_decay * grad_pair[0]) + tf.scalar_mul((1 - rmsprop_decay), grad_pair[1]))
+                for grad_pair in zip(avg_grads, grads)]
+            update_avg_square_grads = [
+                grad_pair[0].assign((rmsprop_decay * grad_pair[0]) + ((1 - rmsprop_decay) * tf.square(grad_pair[1])))
+                for grad_pair in zip(avg_square_grads, grads)]
+            avg_grad_updates = update_avg_grads + update_avg_square_grads
+
+            rms = [tf.sqrt(avg_grad_pair[1] - tf.square(avg_grad_pair[0]) + rmsprop_constant)
+                   for avg_grad_pair in zip(avg_grads, avg_square_grads)]
+
+            rms_updates = [grad_rms_pair[0] / grad_rms_pair[1]
+                           for grad_rms_pair in zip(grads, rms)]
+            train = optimizer.apply_gradients(zip(rms_updates, params))
+
+            return tf.group(train, tf.group(*avg_grad_updates)), grads_and_vars

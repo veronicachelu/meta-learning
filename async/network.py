@@ -17,18 +17,24 @@ class ACNetwork:
 
             conv1 = tf.contrib.layers.conv2d(
                 self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
-                activation_fn=tf.nn.relu, padding=FLAGS.conv1_padding, scope="conv1")
+                activation_fn=tf.nn.relu, padding=FLAGS.conv1_padding,
+                weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(), scope="conv1")
             conv2 = tf.contrib.layers.conv2d(
                 conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
+                weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
                 activation_fn=tf.nn.relu, scope="conv2")
 
+            conv2_flatten = tf.contrib.layers.flatten(conv2)
+            head_size = conv2_flatten.get_shape().as_list()[1]
+            std = self.xavier_std(head_size, FLAGS.fc_size)
+
             hidden = tf.contrib.layers.fully_connected(
-                inputs=tf.contrib.layers.flatten(conv2),
+                inputs=conv2_flatten,
+                weights_initializer=tf.truncated_normal_initializer(std),
                 num_outputs=FLAGS.fc_size,
                 activation_fn=tf.nn.relu,
                 biases_initializer=tf.constant_initializer(0.0),
                 scope="fc1")
-
 
             summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
             self.image_summaries = []
@@ -45,7 +51,10 @@ class ACNetwork:
 
             summary_linear_act = tf.contrib.layers.summarize_activation(hidden)
 
-            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None, scope="policy")
+            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None,
+                                                            weights_initializer=self.normalized_columns_initializer(0.01),
+                                                            biases_initializer=None,
+                                                            scope="policy")
             self.policy = tf.nn.softmax(self.policy, name="policy") + 1e-8
 
             summary_policy_act = tf.contrib.layers.summarize_activation(self.policy)
@@ -53,7 +62,10 @@ class ACNetwork:
             self.value = tf.contrib.layers.fully_connected(
                 inputs=hidden,
                 num_outputs=1,
-                activation_fn=None, scope="value")
+                activation_fn=None,
+                weights_initializer=self.normalized_columns_initializer(1.0),
+                biases_initializer=None,
+                scope="value")
 
             summary_value_act = tf.contrib.layers.summarize_activation(self.value)
 
@@ -75,7 +87,7 @@ class ACNetwork:
                 self.responsible_outputs = tf.reduce_sum(self.policy * self.actions_onehot, [1])
 
                 # Loss functions
-                self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
+                self.value_loss = tf.reduce_sum(tf.nn.l2_loss(self.target_v - tf.reshape(self.value, [-1])))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy))
                 self.policy_loss = -tf.reduce_sum(tf.log(self.responsible_outputs) * self.advantages)
                 self.loss = FLAGS.beta_v * self.value_loss + self.policy_loss - self.entropy * FLAGS.beta_e
@@ -152,3 +164,15 @@ class ACNetwork:
 
         # scaling to [0, 255] is not necessary for tensorboard
         return x7
+
+    # Used to initialize weights for policy and value output layers
+    def normalized_columns_initializer(self, std=1.0):
+        def _initializer(shape, dtype=None, partition_info=None):
+            out = np.random.randn(*shape).astype(np.float32)
+            out *= std / np.sqrt(np.square(out).sum(axis=0, keepdims=True))
+            return tf.constant(out)
+
+        return _initializer
+
+    def xavier_std(self, in_size, out_size):
+        return np.sqrt(2. / (in_size + out_size))
