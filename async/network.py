@@ -17,12 +17,12 @@ class ACNetwork:
 
             conv1 = tf.contrib.layers.conv2d(
                 self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
-                activation_fn=tf.nn.relu, padding=FLAGS.conv1_padding,
+                activation_fn=tf.nn.elu, padding=FLAGS.conv1_padding,
                 weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(), scope="conv1")
             conv2 = tf.contrib.layers.conv2d(
                 conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
                 weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                activation_fn=tf.nn.relu, scope="conv2")
+                activation_fn=tf.nn.elu, scope="conv2")
 
             conv2_flatten = tf.contrib.layers.flatten(conv2)
             # head_size = conv2_flatten.get_shape().as_list()[1]
@@ -30,9 +30,8 @@ class ACNetwork:
 
             hidden = tf.contrib.layers.fully_connected(
                 inputs=conv2_flatten,
-                weights_initializer=tf.contrib.layers.xavier_initializer(),
                 num_outputs=FLAGS.fc_size,
-                activation_fn=tf.nn.relu,
+                activation_fn=tf.nn.elu,
                 biases_initializer=tf.constant_initializer(0.0),
                 scope="fc1")
 
