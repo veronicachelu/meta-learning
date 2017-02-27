@@ -15,23 +15,39 @@ class ACNetwork:
                 shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
                 name="Input")
 
+            fan_in = 4 * FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size
+            fan_out = FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size * FLAGS.conv1_nb_kernels
+            w_bound = np.sqrt(6. / (fan_in + fan_out))
+
+
             conv1 = tf.contrib.layers.conv2d(
                 self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
                 activation_fn=tf.nn.elu, padding=FLAGS.conv1_padding,
-                weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(), scope="conv1")
+                weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
+                bias_initializer=tf.constant_initializer(0.0),
+                scope="conv1")
+
+            fan_in = FLAGS.conv1_nb_kernels * FLAGS.conv2_kernel_size * FLAGS.conv2_kernel_size
+            fan_out = FLAGS.conv2_kernel_size * FLAGS.conv2_kernel_size * FLAGS.conv2_nb_kernels
+            w_bound = np.sqrt(6. / (fan_in + fan_out))
+
             conv2 = tf.contrib.layers.conv2d(
                 conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
-                weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
+                bias_initializer=tf.constant_initializer(0.0),
                 activation_fn=tf.nn.elu, scope="conv2")
 
             conv2_flatten = tf.contrib.layers.flatten(conv2)
-            # head_size = conv2_flatten.get_shape().as_list()[1]
-            # std = self.xavier_std(head_size, FLAGS.fc_size)
+
+            fan_in = conv2_flatten.get_shape().as_list()[1]
+            fan_out = FLAGS.fc_size
+            w_bound = np.sqrt(6. / (fan_in + fan_out))
 
             hidden = tf.contrib.layers.fully_connected(
                 inputs=conv2_flatten,
                 num_outputs=FLAGS.fc_size,
                 activation_fn=tf.nn.elu,
+                weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
                 biases_initializer=tf.constant_initializer(0.0),
                 scope="fc1")
 
@@ -53,8 +69,9 @@ class ACNetwork:
             self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None,
                                                             weights_initializer=self.normalized_columns_initializer(0.01),
                                                             biases_initializer=None,
-                                                            scope="policy")
-            self.policy = tf.nn.softmax(self.policy, name="policy") + 1e-8
+                                                            scope="policy_fc")
+            self.policy = tf.add(tf.nn.softmax(self.policy, name="policy_soft"),
+                          tf.constant(1e-30), name='policy')
 
             summary_policy_act = tf.contrib.layers.summarize_activation(self.policy)
 
