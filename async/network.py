@@ -61,7 +61,10 @@ class ACNetwork:
                     self.image_summaries.append(
                         tf.summary.image('conv1/features/{}'.format(i), tf.expand_dims(grid[:, :, :, i], axis=3),
                                          max_outputs=1))
-
+                for i in range(FLAGS.conv2_nb_kernels):
+                    self.image_summaries.append(
+                        tf.summary.image('conv1/activation/{}'.format(i), tf.expand_dims(grid[:, :, :, i], axis=3),
+                                         max_outputs=1))
             summary_conv2_act = tf.contrib.layers.summarize_activation(conv2)
 
             summary_linear_act = tf.contrib.layers.summarize_activation(hidden)
