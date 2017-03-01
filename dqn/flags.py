@@ -15,8 +15,8 @@ tf.app.flags.DEFINE_string('summaries_dir', './summaries',
                            """Directory where to write event logs""")
 tf.app.flags.DEFINE_string('experiments_dir', './experiments',
                            """Directory where to write event experiments""")
-tf.app.flags.DEFINE_integer('summary_interval', 1000, """Number of episodes of interval between summary saves""")
-tf.app.flags.DEFINE_integer('checkpoint_interval', 1000, """Number of episodes of interval between checkpoint saves""")
+tf.app.flags.DEFINE_integer('summary_interval', 5000, """Number of episodes of interval between summary saves""")
+tf.app.flags.DEFINE_integer('checkpoint_interval', 5000, """Number of episodes of interval between checkpoint saves""")
 tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_integer('agent_history_length', 4, """Number of frames that makes every state""")
 tf.app.flags.DEFINE_integer('resized_width', 24, """Resized width of each frame""")

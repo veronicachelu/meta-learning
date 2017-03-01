@@ -19,7 +19,6 @@ class ACNetwork:
             fan_out = FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size * FLAGS.conv1_nb_kernels
             w_bound = np.sqrt(6. / (fan_in + fan_out))
 
-
             conv1 = tf.contrib.layers.conv2d(
                 self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
                 activation_fn=tf.nn.elu, padding=FLAGS.conv1_padding,

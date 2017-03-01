@@ -106,6 +106,7 @@ class Agent():
                     self.updateTarget()
                 episode_reward = 0
                 episode_step_count = 0
+                q_values = []
                 d = False
 
                 s = self.env.get_initial_state()
@@ -119,6 +120,7 @@ class Agent():
                     else:
                         feed_dict = {self.q_net.inputs: [s]}
                         action_values_evaled = self.sess.run(self.q_net.action_values, feed_dict=feed_dict)[0]
+                        q_values.append(action_values_evaled)
                         a = np.argmax(action_values_evaled)
 
                     s1, r, d, info = self.env.step(a)
@@ -137,16 +139,18 @@ class Agent():
 
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
+                if len(q_values):
+                    self.episode_mean_values.append(np.max(np.asarray(q_values)))
 
                 if episode_count % FLAGS.summary_interval == 0 and episode_count != 0 and total_steps > FLAGS.observation_steps:
-                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
+                    if episode_count % FLAGS.checkpoint_interval == 0:
                         saver.save(self.sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
                     mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
                     mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
-                    # mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
+                    mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
 
                     # if episode_count % FLAGS.test_performance_interval == 0:
                     #     won_games = self.episode_rewards[-FLAGS.test_performance_interval:].count(1)
@@ -154,7 +158,7 @@ class Agent():
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
-                    # self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
+                    self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
                     self.summary.value.add(tag='Losses/Loss', simple_value=float(l))
                     # if False:
