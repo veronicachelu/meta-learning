@@ -32,7 +32,7 @@ tf.app.flags.DEFINE_float('gradient_clip_value', 40.0, """gradient_clip_value"""
 tf.app.flags.DEFINE_integer('seed', 1, """seed value for the gym env""")
 tf.app.flags.DEFINE_integer('conv1_nb_kernels', 16, """conv1_nb_kernels""")
 tf.app.flags.DEFINE_integer('conv2_nb_kernels', 32, """conv2_nb_kernels""")
-tf.app.flags.DEFINE_integer('conv1_kernel_size', 5, """conv1_kernel_size""")
+tf.app.flags.DEFINE_integer('conv1_kernel_size', 6, """conv1_kernel_size""")
 tf.app.flags.DEFINE_integer('conv2_kernel_size', 3, """conv2_kernel_size""")
 tf.app.flags.DEFINE_integer('conv1_stride', 2, """conv1_stride""")
 tf.app.flags.DEFINE_integer('conv2_stride', 2, """conv2_stride""")
