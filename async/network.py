@@ -84,7 +84,7 @@ class ACNetwork:
                                                                 "variables_" + scope),
                                                             outputs_collections=("activations_" + scope),
                                                             scope="policy_fc")
-            self.policy = tf.add(tf.nn.softmax(self.policy, name="policy_soft"),
+            self.policy = tf.nn.softmax(tf.add(self.policy, name="policy_soft"),
                           tf.constant(1e-30), name='policy')
 
             self.value = tf.contrib.layers.fully_connected(
