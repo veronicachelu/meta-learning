@@ -15,6 +15,14 @@ class ACNetwork:
                 shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
                 name="Input")
 
+            self.image_summaries = []
+            with tf.variable_scope('inputs'):
+                tf.get_variable_scope().reuse_variables()
+                for i in range(FLAGS.agent_history_length):
+                    self.image_summaries.append(
+                        tf.summary.image('inputs/frames/{}'.format(i), tf.expand_dims(self.inputs[:, :, :, i], axis=3),
+                                         max_outputs=1))
+
             fan_in = 4 * FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size
             fan_out = FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size * FLAGS.conv1_nb_kernels
             w_bound = np.sqrt(6. / (fan_in + fan_out))
@@ -56,7 +64,6 @@ class ACNetwork:
                 outputs_collections=("activations_" + scope),
                 scope="fc1")
 
-            self.image_summaries = []
             with tf.variable_scope('conv1'):
                 tf.get_variable_scope().reuse_variables()
                 weights = tf.get_variable('weights')
