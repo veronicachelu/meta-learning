@@ -3,7 +3,7 @@ import tensorflow as tf
 # Basic model parameters.
 tf.app.flags.DEFINE_string('game', 'Catcher-Level0-MetaLevel0-v0',
                            """Experiment name from Atari platform""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
@@ -30,20 +30,20 @@ tf.app.flags.DEFINE_float('beta_v', 0.5, """Coefficient of value function loss""
 tf.app.flags.DEFINE_float('beta_e', 0.01, """Coefficient of entropy function loss""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 40.0, """gradient_clip_value""")
 tf.app.flags.DEFINE_integer('seed', 1, """seed value for the gym env""")
-tf.app.flags.DEFINE_integer('conv1_nb_kernels', 32, """conv1_nb_kernels""")
+tf.app.flags.DEFINE_integer('conv1_nb_kernels', 16, """conv1_nb_kernels""")
 tf.app.flags.DEFINE_integer('conv2_nb_kernels', 32, """conv2_nb_kernels""")
 tf.app.flags.DEFINE_integer('conv1_kernel_size', 5, """conv1_kernel_size""")
-tf.app.flags.DEFINE_integer('conv2_kernel_size', 5, """conv2_kernel_size""")
+tf.app.flags.DEFINE_integer('conv2_kernel_size', 3, """conv2_kernel_size""")
 tf.app.flags.DEFINE_integer('conv1_stride', 2, """conv1_stride""")
 tf.app.flags.DEFINE_integer('conv2_stride', 2, """conv2_stride""")
-tf.app.flags.DEFINE_string('conv1_padding', 'SAME', """conv1_padding""")
+tf.app.flags.DEFINE_string('conv1_padding', 'VALID', """conv1_padding""")
 tf.app.flags.DEFINE_string('conv2_padding', 'VALID', """conv1_padding""")
 tf.app.flags.DEFINE_integer('fc_size', 32, """fc_size""")
 tf.app.flags.DEFINE_boolean('monitor', False,
                             """Monitor test with gym monitor""")
 tf.app.flags.DEFINE_boolean('lstm', False,
                             """Whether to use lstm or not""")
-tf.app.flags.DEFINE_boolean('gen_adv', False,
+tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimator or not""")
 tf.flags.DEFINE_integer("eval_every", 300, "Evaluate the policy every N seconds")
 tf.app.flags.DEFINE_boolean('meta', False,

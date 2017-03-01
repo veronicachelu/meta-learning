@@ -24,6 +24,8 @@ class ACNetwork:
                 activation_fn=tf.nn.elu, padding=FLAGS.conv1_padding,
                 weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
                 biases_initializer=tf.constant_initializer(0.0),
+                variables_collections=tf.get_collection("variables_" + scope),
+                outputs_collections=("activations_" + scope),
                 scope="conv1")
 
             fan_in = FLAGS.conv1_nb_kernels * FLAGS.conv2_kernel_size * FLAGS.conv2_kernel_size
@@ -34,6 +36,8 @@ class ACNetwork:
                 conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
                 weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
                 biases_initializer=tf.constant_initializer(0.0),
+                variables_collections=tf.get_collection("variables_" + scope),
+                outputs_collections=("activations_" + scope),
                 activation_fn=tf.nn.elu, scope="conv2")
 
             conv2_flatten = tf.contrib.layers.flatten(conv2)
@@ -48,9 +52,10 @@ class ACNetwork:
                 activation_fn=tf.nn.elu,
                 weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
                 biases_initializer=tf.constant_initializer(0.0),
+                variables_collections=tf.get_collection("variables_" + scope),
+                outputs_collections=("activations_" + scope),
                 scope="fc1")
 
-            summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
             self.image_summaries = []
             with tf.variable_scope('conv1'):
                 tf.get_variable_scope().reuse_variables()
@@ -64,18 +69,16 @@ class ACNetwork:
                     self.image_summaries.append(
                         tf.summary.image('conv1/activation/{}'.format(i), tf.expand_dims(conv1[:, :, :, i], axis=3),
                                          max_outputs=1))
-            summary_conv2_act = tf.contrib.layers.summarize_activation(conv2)
-
-            summary_linear_act = tf.contrib.layers.summarize_activation(hidden)
 
             self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None,
                                                             weights_initializer=self.normalized_columns_initializer(0.01),
                                                             biases_initializer=None,
+                                                            variables_collections=tf.get_collection(
+                                                                "variables_" + scope),
+                                                            outputs_collections=("activations_" + scope),
                                                             scope="policy_fc")
             self.policy = tf.add(tf.nn.softmax(self.policy, name="policy_soft"),
                           tf.constant(1e-30), name='policy')
-
-            summary_policy_act = tf.contrib.layers.summarize_activation(self.policy)
 
             self.value = tf.contrib.layers.fully_connected(
                 inputs=hidden,
@@ -83,9 +86,9 @@ class ACNetwork:
                 activation_fn=None,
                 weights_initializer=self.normalized_columns_initializer(1.0),
                 biases_initializer=None,
+                variables_collections=tf.get_collection("variables_" + scope),
+                outputs_collections=("activations_" + scope),
                 scope="value")
-
-            summary_value_act = tf.contrib.layers.summarize_activation(self.value)
 
             if scope != 'global':
 
@@ -115,11 +118,15 @@ class ACNetwork:
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
-                self.worker_summaries = [summary_conv1_act, summary_conv2_act, summary_linear_act, summary_policy_act,
-                                         summary_value_act]
+                self.worker_summaries = []
+                self.worker_summaries.append(
+                    tf.contrib.layers.summarize_collection("variables_" + scope))  # tf.get_collection("variables")))
+                self.worker_summaries.append(tf.contrib.layers.summarize_collection("activations_" + scope,
+                                                                             summarizer=tf.contrib.layers.summarize_activation))
+
                 for grad, weight in zip(grads, local_vars):
                     self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
-                    self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
+                    # self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
 
                 self.merged_summary = tf.summary.merge(self.worker_summaries)
 
