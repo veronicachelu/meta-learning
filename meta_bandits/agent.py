@@ -7,10 +7,11 @@ FLAGS = tf.app.flags.FLAGS
 
 
 class Worker():
-    def __init__(self, game, thread_id, optimizer, global_step):
+    def __init__(self, game, thread_id, optimizer, global_step, settings):
         self.name = "worker_" + str(thread_id)
         self.thread_id = thread_id
-        self.model_path = FLAGS.checkpoint_dir
+        self.model_path = settings["checkpoint_dir"]
+        self.settings = settings
         self.optimizer = optimizer
         self.global_episode = global_step
         self.increment_global_episode = self.global_episode.assign_add(1)
@@ -22,14 +23,14 @@ class Worker():
 
         self.episode_lengths = []
         self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
+        self.summary_writer = tf.summary.FileWriter(settings["summaries_dir"] + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
         self.local_AC = AC_Network(self.name, optimizer, self.global_episode)
         self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
-    def train(self, rollout, sess, bootstrap_value):
+    def train(self, rollout, sess, bootstrap_value, settings):
         rollout = np.array(rollout)
         actions = rollout[:, 0]
         rewards = rollout[:, 1]
@@ -40,12 +41,12 @@ class Worker():
 
         # The advantage function uses "Generalized Advantage Estimation"
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-        discounted_rewards = discount(rewards_plus, FLAGS.gamma)[:-1]
+        discounted_rewards = discount(rewards_plus, settings["gamma"])[:-1]
         value_plus = np.asarray(values.tolist() + [bootstrap_value])
         policy_target = discounted_rewards - value_plus[:-1]
         if FLAGS.gen_adv:
-            td_residuals = rewards + FLAGS.gamma * value_plus[1:] - value_plus[:-1]
-            advantages = discount(td_residuals, FLAGS.gamma)
+            td_residuals = rewards + settings["gamma"] * value_plus[1:] - value_plus[:-1]
+            advantages = discount(td_residuals, settings["gamma"])
             policy_target = advantages
 
         rnn_state = self.local_AC.state_init
@@ -151,7 +152,7 @@ class Worker():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
+                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0, self.settings)
 
                 if episode_count % FLAGS.nb_test_episodes:
                     episode_regret = [max(o - r, 0) for (o, r) in
@@ -160,8 +161,17 @@ class Worker():
                     mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-150:])
 
                 if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
-                    print("Mean regret for the model is {}".format(mean_regret))
-                    print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
+                    if FLAGS.hypertune:
+                        with open(FLAGS.results_file, "a+") as f:
+                            f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
+                                self.settings["game"],
+                                self.settings["lr"],
+                                self.settings["gamma"],
+                                mean_regret,
+                                mean_nb_suboptimal_arms))
+                    else:
+                        print("Mean regret for the model is {}".format(mean_regret))
+                        print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
                 if not FLAGS.train:
@@ -177,7 +187,7 @@ class Worker():
 
                     if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
                         self.images = np.array(episode_frames)
-                        make_gif(self.images, FLAGS.frames_dir + '/image' + str(episode_count) + '.gif',
+                        make_gif(self.images, self.settings.frames_dir + '/image' + str(episode_count) + '.gif',
                                  duration=len(self.images) * 0.1, true_image=True)
 
                     mean_reward = np.mean(self.episode_rewards[-50:])

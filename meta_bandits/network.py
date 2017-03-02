@@ -18,10 +18,10 @@ class AC_Network():
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
 
-            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep],
+            hidden = tf.concat([self.prev_rewards, self.prev_actions_onehot, self.timestep], 1,
                                name="Concatenated_input")
 
-            lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)
+            lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
             self.state_init = [c_init, h_init]
@@ -31,7 +31,7 @@ class AC_Network():
 
             rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
             step_size = tf.shape(self.prev_rewards)[:1]
-            state_in = tf.nn.rnn_cell.LSTMStateTuple(c_in, h_in)
+            state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
 
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
                 lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
