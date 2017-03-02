@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Catcher-Level0-MetaLevel0-v0',
+tf.app.flags.DEFINE_string('game', 'maze-random-10x10-plus-v0',
                            """Experiment name from Atari platform""")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
@@ -17,7 +17,6 @@ tf.app.flags.DEFINE_string('experiments_dir', './experiments',
                            """Directory where to write event experiments""")
 tf.app.flags.DEFINE_integer('summary_interval', 5000, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 5000, """Number of episodes of interval between checkpoint saves""")
-tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_integer('agent_history_length', 4, """Number of frames that makes every state""")
 tf.app.flags.DEFINE_integer('resized_width', 24, """Resized width of each frame""")
 tf.app.flags.DEFINE_integer('resized_height', 24, """Resized height of each frame""")
@@ -26,8 +25,8 @@ tf.app.flags.DEFINE_float('lr', 0.00025, """Learning rate""")
 tf.app.flags.DEFINE_integer('seed', 1, """seed value for the gym env""")
 tf.app.flags.DEFINE_integer('conv1_nb_kernels', 32, """conv1_nb_kernels""")
 tf.app.flags.DEFINE_integer('conv2_nb_kernels', 32, """conv2_nb_kernels""")
-tf.app.flags.DEFINE_integer('conv1_kernel_size', 5, """conv1_kernel_size""")
-tf.app.flags.DEFINE_integer('conv2_kernel_size', 5, """conv2_kernel_size""")
+tf.app.flags.DEFINE_integer('conv1_kernel_size', 6, """conv1_kernel_size""")
+tf.app.flags.DEFINE_integer('conv2_kernel_size', 3, """conv2_kernel_size""")
 tf.app.flags.DEFINE_integer('conv1_stride', 2, """conv1_stride""")
 tf.app.flags.DEFINE_integer('conv2_stride', 2, """conv2_stride""")
 tf.app.flags.DEFINE_string('conv1_padding', 'SAME', """conv1_padding""")
