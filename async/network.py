@@ -77,7 +77,7 @@ class ACNetwork:
                         tf.summary.image('conv1/activation/{}'.format(i), tf.expand_dims(conv1[:, :, :, i], axis=3),
                                          max_outputs=1))
 
-            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions,
+            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None,
                                                             weights_initializer=self.normalized_columns_initializer(0.01),
                                                             biases_initializer=None,
                                                             variables_collections=tf.get_collection(

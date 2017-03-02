@@ -12,13 +12,19 @@ FLAGS = tf.app.flags.FLAGS
 class AC_Network():
     def __init__(self, scope, trainer, global_step=None):
         with tf.variable_scope(scope):
+            self.state = tf.placeholder(shape=[None, 5, 5, 3], dtype=tf.float32)
+
+            self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.state), 64,
+                                                          activation_fn=tf.nn.elu)
+
             self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
 
-            hidden = tf.concat(1, [self.prev_rewards, self.prev_actions_onehot, self.timestep],
+            hidden = tf.concat(1, [tf.contrib.layers.flatten(self.conv), self.prev_rewards, self.prev_actions_onehot,
+                                   self.timestep],
                                name="Concatenated_input")
 
             lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)
@@ -71,9 +77,9 @@ class AC_Network():
                                                         power=0.5)
 
                 self.policy_loss = -tf.reduce_sum(
-                    tf.log(self.responsible_outputs + 1e-7) * self.advantages)
+                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) - self.entropy * self.beta_e
 
-                self.loss = self.value_loss + self.policy_loss - self.entropy * self.beta_e
+                self.loss = self.value_loss + self.policy_loss
 
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
                 self.gradients = tf.gradients(self.loss, local_vars)

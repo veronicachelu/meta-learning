@@ -1,0 +1,7 @@
+tensorflow==0.12.1
+numpy==1.11.3
+moviepy==0.2.2.12
+Pillow==4.0.0
+scipy==0.18.1
+six==1.10.0
+imageio==1.6
