@@ -11,10 +11,9 @@ import os
 
 FLAGS = tf.app.flags.FLAGS
 
-
 def recreate_directory_structure():
-    if tf.gfile.Exists(FLAGS.results_file):
-        os.remove(FLAGS.results_file)
+    if tf.gfile.Exists(FLAGS.results_val_file):
+        os.remove(FLAGS.results_val_file)
 
     if not tf.gfile.Exists(FLAGS.checkpoint_dir):
         tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
@@ -134,6 +133,8 @@ def hypertune(game):
 
         game = model_instances[0].split("__")[0].split("_")[1]
 
+        val_envs = TwoArms.get_envs(game, FLAGS.nb_test_episodes)
+
         for i in range(len(model_instances)):
             lr = lrs[i]
             gamma = gammas[i]
@@ -150,12 +151,16 @@ def hypertune(game):
                         "model_name": model_name,
                         "checkpoint_dir": checkpoint_dir,
                         "summaries_dir": summaries_dir,
-                        "frames_dir": frames_dir}
+                        "frames_dir": frames_dir,
+                        "envs": val_envs}
 
             run(settings)
 
 def test():
-    with open(FLAGS.results_file, "r") as f:
+    if tf.gfile.Exists(FLAGS.results_test_file):
+        os.remove(FLAGS.results_test_file)
+
+    with open(FLAGS.results_val_file, "r") as f:
         content = f.readlines()
         lines = [line.rstrip('\n') for line in content]
 
@@ -173,28 +178,32 @@ def test():
             gammas.append(gamma)
             mean_regrets.append(mean_regret)
             mean_nb_subopt_armss.append(mean_nb_subopt_arms)
-        i = np.argmax(np.asarray(mean_regrets))
-        best_lr = lrs[i]
-        best_gamma = lrs[i]
-        best_game = games[i]
+        indices_best_n = np.asarray(mean_regrets).argsort()[-FLAGS.top:][::-1]
+        best_lrs = [lrs[i] for i in indices_best_n]
+        best_gammas = [gammas[i] for i in indices_best_n]
+        best_game = games[0]
 
-        model_name = "best_{}__lr_{}__gamma_{}".format(game, lr, gamma)
-        load_from_model_name = "d_{}__lr_{}__gamma_{}".format(game, lr, gamma)
-        print(model_name)
-        checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
-        summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
-        frames_dir = os.path.join(FLAGS.frames_dir, model_name)
+        test_envs = TwoArms.get_envs(best_game, FLAGS.nb_test_episodes)
 
-        settings = {"lr": best_lr,
-                    "gamma": best_gamma,
-                    "game": best_game,
-                    "model_name": model_name,
-                    "checkpoint_dir": checkpoint_dir,
-                    "summaries_dir": summaries_dir,
-                    "frames_dir": frames_dir,
-                    "load_from": os.path.join(FLAGS.checkpoint_dir, load_from_model_name)}
+        for i in range(len(indices_best_n)):
+            model_name = "best_{}__lr_{}__gamma_{}".format(best_game, best_lrs[i], best_gammas[i])
+            load_from_model_name = "d_{}__lr_{}__gamma_{}".format(best_game, best_lrs[i], best_gammas[i])
+            print(model_name)
+            checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
+            summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
+            frames_dir = os.path.join(FLAGS.frames_dir, model_name)
 
-        run(settings)
+            settings = {"lr": best_lrs[i],
+                        "gamma": best_gammas[i],
+                        "game": best_game,
+                        "model_name": model_name,
+                        "checkpoint_dir": checkpoint_dir,
+                        "summaries_dir": summaries_dir,
+                        "frames_dir": frames_dir,
+                        "load_from": os.path.join(FLAGS.checkpoint_dir, load_from_model_name),
+                        "envs": test_envs}
+
+            run(settings)
 
 if __name__ == '__main__':
     if FLAGS.hypertune:

@@ -86,8 +86,8 @@ class Worker():
                 sess.run(self.update_local_vars)
                 episode_buffer = []
 
-                if not FLAGS.train:
-                    print("Episode {}".format(test_episode_count))
+                # if not FLAGS.train:
+                #     print("Episode {}".format(test_episode_count))
 
                 episode_rewards_for_optimal_arm = 0
                 episode_suboptimal_arm = 0
@@ -99,7 +99,11 @@ class Worker():
                 r = 0
                 a = 0
                 t = 0
-                self.env.reset()
+                if not FLAGS.resume and FLAGS.train:
+                    self.env.reset()
+                else:
+                    self.env.set(self.settings["envs"][test_episode_count])
+
                 rnn_state = self.local_AC.state_init
 
                 while not d:
@@ -142,11 +146,11 @@ class Worker():
                 self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
                 self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
 
-                if not FLAGS.train:
-                    print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
-                                                                                     episode_rewards_for_optimal_arm))
-                    print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
-                    print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
+                # if not FLAGS.train:
+                #     print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
+                #                                                                      episode_rewards_for_optimal_arm))
+                #     print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
+                #     print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
 
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
@@ -160,9 +164,9 @@ class Worker():
                     mean_regret = np.mean(episode_regret)
                     mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-150:])
 
-                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
+                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
                     if FLAGS.hypertune:
-                        with open(FLAGS.results_file, "a+") as f:
+                        with open(FLAGS.results_val_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
                                 self.settings["game"],
                                 self.settings["lr"],
@@ -170,14 +174,21 @@ class Worker():
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
                     else:
-                        print("Mean regret for the model is {}".format(mean_regret))
-                        print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
+                        with open(FLAGS.results_test_file, "a+") as f:
+                            f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
+                                self.settings["game"],
+                                self.settings["lr"],
+                                self.settings["gamma"],
+                                mean_regret,
+                                mean_nb_suboptimal_arms))
+                        # print("Mean regret for the model is {}".format(mean_regret))
+                        # print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
-                if not FLAGS.train:
-                    self.images = np.array(episode_frames)
-                    make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
-                             duration=len(self.images) * 0.1, true_image=True)
+                # if not FLAGS.train:
+                #     self.images = np.array(episode_frames)
+                #     make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
+                #              duration=len(self.images) * 0.1, true_image=True)
 
                 if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:

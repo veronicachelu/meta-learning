@@ -10,6 +10,23 @@ class TwoArms():
     def set_restless_prob(self):
         self.bandit = np.array([self.restless_list[self.timestep], 1 - self.restless_list[self.timestep]])
 
+    @staticmethod
+    def get_envs(difficulty, nb_envs):
+        envs = []
+
+        for _ in range(nb_envs):
+            if difficulty == 'easy': bandit_prob = np.random.choice([0.9, 0.1])
+            if difficulty == 'medium': bandit_prob = np.random.choice([0.75, 0.25])
+            if difficulty == 'hard': bandit_prob = np.random.choice([0.6, 0.4])
+            if difficulty == 'uniform': bandit_prob = np.random.uniform()
+            if difficulty != 'independent':
+                bandit = np.array([bandit_prob, 1 - bandit_prob])
+            else:
+                bandit = np.random.uniform(size=2)
+            envs.append(bandit)
+
+        return envs
+
     def reset(self):
         self.timestep = 0
         if self.difficulty == 'restless':
@@ -26,6 +43,9 @@ class TwoArms():
             self.bandit = np.array([bandit_prob, 1 - bandit_prob])
         else:
             self.bandit = np.random.uniform(size=2)
+
+    def set(self, bandit):
+        self.bandit = bandit
 
     def pull_arm(self, action):
         if self.difficulty == 'restless': self.set_restless_prob()
