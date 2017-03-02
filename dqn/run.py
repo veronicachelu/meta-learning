@@ -3,6 +3,7 @@ import multiprocessing
 from threading import Lock
 import gym
 from gym import wrappers
+import gym_maze
 import gym_fast_envs
 # import gym_ple
 import tensorflow as tf
