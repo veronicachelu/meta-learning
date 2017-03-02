@@ -127,7 +127,7 @@ class ACNetwork:
 
                 self.worker_summaries = []
                 self.worker_summaries.append(
-                    tf.contrib.layers.summarize_collection("variables_" + scope))  # tf.get_collection("variables")))
+                    tf.contrib.layers.summarize_collection("variables_" + scope, summarizer=tf.contrib.layers.summarize_tensor))
                 self.worker_summaries.append(tf.contrib.layers.summarize_collection("activations_" + scope,
                                                                              summarizer=tf.contrib.layers.summarize_activation))
 
