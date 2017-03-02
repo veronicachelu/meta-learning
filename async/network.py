@@ -77,15 +77,15 @@ class ACNetwork:
                         tf.summary.image('conv1/activation/{}'.format(i), tf.expand_dims(conv1[:, :, :, i], axis=3),
                                          max_outputs=1))
 
-            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions, activation_fn=None,
+            self.policy = tf.contrib.layers.fully_connected(hidden, nb_actions,
                                                             weights_initializer=self.normalized_columns_initializer(0.01),
                                                             biases_initializer=None,
                                                             variables_collections=tf.get_collection(
                                                                 "variables_" + scope),
                                                             outputs_collections=("activations_" + scope),
+                                                            activation_fn=tf.nn.softmax,
                                                             scope="policy_fc")
-            self.policy = tf.nn.softmax(tf.add(self.policy,
-                          tf.constant(1e-30)), name='policy')
+            self.policy = tf.add(self.policy, tf.constant(1e-30), name='policy')
 
             self.value = tf.contrib.layers.fully_connected(
                 inputs=hidden,
