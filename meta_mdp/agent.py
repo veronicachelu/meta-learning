@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from network import AC_Network
+from network import ACNetwork
 from utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
 
 FLAGS = tf.app.flags.FLAGS
@@ -25,18 +25,19 @@ class Agent():
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
-        self.local_AC = AC_Network(self.name, optimizer, self.global_episode)
+        self.local_AC = ACNetwork(self.name, optimizer, self.global_episode)
         self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
     def train(self, rollout, sess, bootstrap_value):
         rollout = np.array(rollout)
-        actions = rollout[:, 0]
-        rewards = rollout[:, 1]
-        timesteps = rollout[:, 2]
+        observations = rollout[:, 0]
+        actions = rollout[:, 1]
+        rewards = rollout[:, 2]
+        timesteps = rollout[:, 3]
         prev_rewards = [0] + rewards[:-1].tolist()
         prev_actions = [0] + actions[:-1].tolist()
-        values = rollout[:, 4]
+        values = rollout[:, 5]
 
         # The advantage function uses "Generalized Advantage Estimation"
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
@@ -50,6 +51,7 @@ class Agent():
 
         rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v: discounted_rewards,
+                     self.local_AC.inputs: np.stack(observations, axis=0),
                      self.local_AC.prev_rewards: np.vstack(prev_rewards),
                      self.local_AC.prev_actions: prev_actions,
                      self.local_AC.actions: actions,
@@ -147,9 +149,6 @@ class Agent():
                     self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
                     if FLAGS.train:
-                        if episode_count % FLAGS.nb_test_episodes:
-                            self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
-                            self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
                         self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
                         self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
                         self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))

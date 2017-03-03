@@ -9,12 +9,21 @@ from utils import normalized_columns_initializer
 FLAGS = tf.app.flags.FLAGS
 
 
-class AC_Network():
+class ACNetwork():
     def __init__(self, scope, trainer, global_step=None):
         with tf.variable_scope(scope):
-            self.inputs = tf.placeholder(shape=[None, FLAGS.game_size, FLAGS.game_size, FLAGS.game_channels], dtype=tf.float32)
+            self.inputs = tf.placeholder(shape=[None, FLAGS.game_size, FLAGS.game_size, FLAGS.game_channels],
+                                         dtype=tf.float32, name="Inputs")
 
-            self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.state), 64,
+            self.image_summaries = []
+            with tf.variable_scope('inputs'):
+                tf.get_variable_scope().reuse_variables()
+                for i in range(FLAGS.game_channels):
+                    self.image_summaries.append(
+                        tf.summary.image('inputs/frames/{}'.format(i), tf.expand_dims(self.inputs[:, :, :, i], axis=3),
+                                         max_outputs=1))
+
+            self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.inputs), 64,
                                                           activation_fn=tf.nn.elu)
 
             self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
@@ -23,11 +32,10 @@ class AC_Network():
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
 
-            hidden = tf.concat(1, [tf.contrib.layers.flatten(self.conv), self.prev_rewards, self.prev_actions_onehot,
-                                   self.timestep],
-                               name="Concatenated_input")
+            hidden = tf.concat([tf.contrib.layers.flatten(self.conv), self.prev_rewards, self.prev_actions_onehot,
+                                   self.timestep], 1, name="Concatenated_input")
 
-            lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(48, state_is_tuple=True)
+            lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
             h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
             self.state_init = [c_init, h_init]
@@ -37,7 +45,7 @@ class AC_Network():
 
             rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
             step_size = tf.shape(self.prev_rewards)[:1]
-            state_in = tf.nn.rnn_cell.LSTMStateTuple(c_in, h_in)
+            state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
 
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
                 lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
@@ -86,62 +94,13 @@ class AC_Network():
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
+                self.worker_summaries = []
                 for grad, weight in zip(grads, local_vars):
-                    tf.summary.histogram(weight.name + '_grad', grad)
-                    tf.summary.histogram(weight.name, weight)
+                    self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
+                    self.worker_summaries.append(tf.summary.histogram(weight.name, weight))
 
-                self.merged_summary = tf.summary.merge_all()
+                self.merged_summary = tf.summary.merge(self.worker_summaries)
 
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
                 self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
 
-    def xavier_initializer(self, uniform=True, seed=None, dtype=dtypes.float32):
-        return self.variance_scaling_initializer(factor=1.0, mode='FAN_AVG',
-                                                 uniform=uniform, seed=seed, dtype=dtype)
-
-    def variance_scaling_initializer(self, factor=2.0, mode='FAN_IN', uniform=False,
-                                     seed=None, dtype=dtypes.float32):
-        if not dtype.is_floating:
-            raise TypeError('Cannot create initializer for non-floating point type.')
-        if mode not in ['FAN_IN', 'FAN_OUT', 'FAN_AVG']:
-            raise TypeError('Unknow mode %s [FAN_IN, FAN_OUT, FAN_AVG]', mode)
-
-        # pylint: disable=unused-argument
-        def _initializer(shape, dtype=dtype, partition_info=None):
-            """Initializer function."""
-            if not dtype.is_floating:
-                raise TypeError('Cannot create initializer for non-floating point type.')
-            # Estimating fan_in and fan_out is not possible to do perfectly, but we try.
-            # This is the right thing for matrix multiply and convolutions.
-            if shape:
-                fan_in = float(shape[-2]) if len(shape) > 1 else float(shape[-1])
-                fan_out = float(shape[-1])
-            else:
-                fan_in = 1.0
-                fan_out = 1.0
-            for dim in shape[:-2]:
-                fan_in *= float(dim)
-                fan_out *= float(dim)
-            if mode == 'FAN_IN':
-                # Count only number of input connections.
-                n = fan_in
-            elif mode == 'FAN_OUT':
-                # Count only number of output connections.
-                n = fan_out
-            elif mode == 'FAN_AVG':
-                # Average number of inputs and output connections.
-                n = (fan_in + fan_out) / 2.0
-            if uniform:
-                # To get stddev = math.sqrt(factor / n) need to adjust for uniform.
-                limit = math.sqrt(3.0 * factor / n)
-                return random_ops.random_uniform(shape, -limit, limit,
-                                                 dtype, seed=seed)
-            else:
-                # To get stddev = math.sqrt(factor / n) need to adjust for truncated.
-                trunc_stddev = math.sqrt(1.3 * factor / n)
-                return random_ops.truncated_normal(shape, 0.0, trunc_stddev, dtype,
-                                                   seed=seed)
-
-        # pylint: enable=unused-argument
-
-        return _initializer

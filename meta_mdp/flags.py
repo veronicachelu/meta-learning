@@ -9,16 +9,20 @@ tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
+tf.app.flags.DEFINE_boolean('show_training', False,
+                            """Show windows with workers training""")
 tf.app.flags.DEFINE_string('checkpoint_dir', './models',
                            """Directory where to save model checkpoints.""")
 tf.app.flags.DEFINE_string('summaries_dir', './summaries',
                            """Directory where to write event logs""")
 tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
-tf.app.flags.DEFINE_integer('summary_interval', 20000, """Number of episodes of interval between summary saves""")
+tf.app.flags.DEFINE_boolean('monitor', False,
+                            """Monitor test with gym monitor""")
+tf.app.flags.DEFINE_integer('summary_interval', 500, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 500, """Number of episodes of interval between checkpoint saves""")
-tf.app.flags.DEFINE_integer('frames_interval', 20000, """Number of episodes of interval between frames saves""")
 tf.app.flags.DEFINE_integer('nb_actions', 4, """Number of actions to take""")
+tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_float('gamma', 0.95, """Gamma value""")
 tf.app.flags.DEFINE_float('lr', 1e-3, """Learning rate""")
 tf.app.flags.DEFINE_float('beta_v', 0.05, """Coefficient of value function loss""")
