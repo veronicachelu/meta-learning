@@ -196,10 +196,10 @@ class Worker():
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-                    if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
-                        self.images = np.array(episode_frames)
-                        make_gif(self.images, self.settings.frames_dir + '/image' + str(episode_count) + '.gif',
-                                 duration=len(self.images) * 0.1, true_image=True)
+                    # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
+                    #     self.images = np.array(episode_frames)
+                    #     make_gif(self.images, self.settings.frames_dir + '/image' + str(episode_count) + '.gif',
+                    #              duration=len(self.images) * 0.1, true_image=True)
 
                     mean_reward = np.mean(self.episode_rewards[-50:])
                     mean_length = np.mean(self.episode_lengths[-50:])
