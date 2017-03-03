@@ -6,7 +6,7 @@ from utils import update_target_graph, discount, set_image_bandit, set_image_ban
 FLAGS = tf.app.flags.FLAGS
 
 
-class Worker():
+class Agent():
     def __init__(self, game, thread_id, optimizer, global_step):
         self.name = "worker_" + str(thread_id)
         self.thread_id = thread_id
@@ -98,11 +98,13 @@ class Worker():
                 r = 0
                 a = 0
                 t = 0
-                self.env.reset()
+
+                s = self.env.reset()
                 rnn_state = self.local_AC.state_init
 
                 while not d:
                     feed_dict = {
+                        self.local_AC.inputs: [s],
                         self.local_AC.prev_rewards: [[r]],
                         self.local_AC.timestep: [[t]],
                         self.local_AC.prev_actions: [a],
@@ -115,70 +117,26 @@ class Worker():
                     a = np.argmax(pi == a)
 
                     rnn_state = rnn_state_new
-                    r, d, t = self.env.pull_arm(a)
-
-                    # if not FLAGS.train:
-                    episode_rewards_for_optimal_arm += self.env.pull_arm_for_test()
-                    optimal_action = self.env.get_optimal_arm()
-                    if optimal_action != a:
-                        episode_suboptimal_arm += 1
-
-                    episode_buffer.append([a, r, t, d, v[0, 0]])
+                    s, r, d, _ = self.env.step(a)
+                    episode_buffer.append([s, a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])
-
-                    if not FLAGS.game == '11arms':
-                        episode_frames.append(set_image_bandit(episode_reward, self.env.get_bandit(), a, t))
-                    else:
-                        episode_frames.append(
-                            set_image_bandit_11_arms(episode_reward, self.env.get_optimal_arm(), a, t))
-
                     episode_reward[a] += r
                     total_steps += 1
+                    t+= 1
                     episode_step_count += 1
 
                 self.episode_rewards.append(np.sum(episode_reward))
-
-                self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
-                self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
-
-                if not FLAGS.train:
-                    print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
-                                                                                     episode_rewards_for_optimal_arm))
-                    print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
-                    print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
-
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
 
-                if episode_count % FLAGS.nb_test_episodes:
-                    episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards[-150:], self.episode_rewards[-150:])]
-                    mean_regret = np.mean(episode_regret)
-                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-150:])
-
-                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes:
-                    print("Mean regret for the model is {}".format(mean_regret))
-                    print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
-                    return 1
-
-                if not FLAGS.train:
-                    self.images = np.array(episode_frames)
-                    make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
-                             duration=len(self.images) * 0.1, true_image=True)
-
-                if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
+                if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
-
-                    if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
-                        self.images = np.array(episode_frames)
-                        make_gif(self.images, FLAGS.frames_dir + '/image' + str(episode_count) + '.gif',
-                                 duration=len(self.images) * 0.1, true_image=True)
 
                     mean_reward = np.mean(self.episode_rewards[-50:])
                     mean_length = np.mean(self.episode_lengths[-50:])
