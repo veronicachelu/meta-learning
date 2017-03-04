@@ -60,16 +60,17 @@ class Agent():
                      self.local_AC.state_in[0]: rnn_state[0],
                      self.local_AC.state_in[1]: rnn_state[1]}
 
-        l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
-                                                      self.local_AC.value_loss,
-                                                      self.local_AC.policy_loss,
-                                                      self.local_AC.entropy,
-                                                      self.local_AC.grad_norms,
-                                                      self.local_AC.var_norms,
-                                                      self.local_AC.apply_grads,
-                                                      self.local_AC.merged_summary],
-                                                     feed_dict=feed_dict)
-        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
+        l, v_l, p_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
+                                                                self.local_AC.value_loss,
+                                                                self.local_AC.policy_loss,
+                                                                self.local_AC.entropy,
+                                                                self.local_AC.grad_norms,
+                                                                self.local_AC.var_norms,
+                                                                self.local_AC.apply_grads,
+                                                                self.local_AC.merged_summary,
+                                                                self.local_AC.image_summaries],
+                                                               feed_dict=feed_dict)
+        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms, img_summ
 
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
@@ -81,20 +82,12 @@ class Agent():
         print("Starting worker " + str(self.thread_id))
         with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
-                if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
-                    return 0
 
                 sess.run(self.update_local_vars)
                 episode_buffer = []
 
-                if not FLAGS.train:
-                    print("Episode {}".format(test_episode_count))
-
-                episode_rewards_for_optimal_arm = 0
-                episode_suboptimal_arm = 0
                 episode_values = []
-                episode_frames = []
-                episode_reward = [0 for _ in range(FLAGS.nb_actions)]
+                episode_reward = 0
                 episode_step_count = 0
                 d = False
                 r = 0
@@ -119,30 +112,33 @@ class Agent():
                     a = np.argmax(pi == a)
 
                     rnn_state = rnn_state_new
-                    s, r, d, _ = self.env.step(a)
+                    s1, r, d, _ = self.env.step(a)
                     episode_buffer.append([s, a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])
-                    episode_reward[a] += r
+                    episode_reward += r
                     total_steps += 1
-                    t+= 1
+                    t += 1
                     episode_step_count += 1
+
+                    s = s1
 
                 self.episode_rewards.append(np.sum(episode_reward))
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0)
+                    l, v_l, p_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0)
 
-                if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
+                if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0 and \
+                                self.name == 'worker_0':
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-                    mean_reward = np.mean(self.episode_rewards[-50:])
-                    mean_length = np.mean(self.episode_lengths[-50:])
-                    mean_value = np.mean(self.episode_mean_values[-50:])
+                    mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
+                    mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
+                    mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
@@ -184,7 +180,8 @@ class Agent():
                             else:
                                 print(
                                     'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
-
+                    for s in img_sum:
+                        self.summary_writer.add_summary(s, episode_count)
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()

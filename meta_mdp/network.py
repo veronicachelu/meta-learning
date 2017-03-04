@@ -20,7 +20,7 @@ class ACNetwork():
                 tf.get_variable_scope().reuse_variables()
                 for i in range(FLAGS.game_channels):
                     self.image_summaries.append(
-                        tf.summary.image('inputs/frames/{}'.format(i), tf.expand_dims(self.inputs[:, :, :, i], axis=3),
+                        tf.summary.image('inputs/frames/{}'.format(i), self.inputs,
                                          max_outputs=1))
 
             self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.inputs), 64,
@@ -32,7 +32,7 @@ class ACNetwork():
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
 
-            hidden = tf.concat([tf.contrib.layers.flatten(self.conv), self.prev_rewards, self.prev_actions_onehot,
+            hidden = tf.concat([self.conv, self.prev_rewards, self.prev_actions_onehot,
                                    self.timestep], 1, name="Concatenated_input")
 
             lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)

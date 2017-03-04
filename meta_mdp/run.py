@@ -21,6 +21,13 @@ def recreate_directory_structure():
             tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
             tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
 
+    if not tf.gfile.Exists(FLAGS.experiments_dir):
+        tf.gfile.MakeDirs(FLAGS.experiments_dir)
+    else:
+        if not FLAGS.resume and FLAGS.train:
+            tf.gfile.DeleteRecursively(FLAGS.experiments_dir)
+            tf.gfile.MakeDirs(FLAGS.experiments_dir)
+
     if not tf.gfile.Exists(FLAGS.summaries_dir):
         tf.gfile.MakeDirs(FLAGS.summaries_dir)
     else:
@@ -34,7 +41,6 @@ def recreate_directory_structure():
 
 def run():
     recreate_directory_structure()
-    tf.reset_default_graph()
     tf.reset_default_graph()
 
     sess = tf.Session()
