@@ -35,9 +35,11 @@ class Agent():
         actions = rollout[:, 1]
         rewards = rollout[:, 2]
         timesteps = rollout[:, 3]
-        prev_rewards = [0] + rewards[:-1].tolist()
-        prev_actions = [0] + actions[:-1].tolist()
         values = rollout[:, 5]
+
+        if FLAGS.meta:
+            prev_rewards = [0] + rewards[:-1].tolist()
+            prev_actions = [0] + actions[:-1].tolist()
 
         # The advantage function uses "Generalized Advantage Estimation"
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
@@ -50,15 +52,24 @@ class Agent():
             policy_target = advantages
 
         rnn_state = self.local_AC.state_init
-        feed_dict = {self.local_AC.target_v: discounted_rewards,
-                     self.local_AC.inputs: np.stack(observations, axis=0),
-                     self.local_AC.prev_rewards: np.vstack(prev_rewards),
-                     self.local_AC.prev_actions: prev_actions,
-                     self.local_AC.actions: actions,
-                     self.local_AC.timestep: np.vstack(timesteps),
-                     self.local_AC.advantages: policy_target,
-                     self.local_AC.state_in[0]: rnn_state[0],
-                     self.local_AC.state_in[1]: rnn_state[1]}
+        if FLAGS.meta:
+            feed_dict = {self.local_AC.target_v: discounted_rewards,
+                         self.local_AC.inputs: np.stack(observations, axis=0),
+                         self.local_AC.prev_rewards: np.vstack(prev_rewards),
+                         self.local_AC.prev_actions: prev_actions,
+                         self.local_AC.actions: actions,
+                         self.local_AC.timestep: np.vstack(timesteps),
+                         self.local_AC.advantages: policy_target,
+                         self.local_AC.state_in[0]: rnn_state[0],
+                         self.local_AC.state_in[1]: rnn_state[1]}
+        else:
+            feed_dict = {self.local_AC.target_v: discounted_rewards,
+                         self.local_AC.inputs: np.stack(observations, axis=0),
+                         self.local_AC.actions: actions,
+                         self.local_AC.timestep: np.vstack(timesteps),
+                         self.local_AC.advantages: policy_target,
+                         self.local_AC.state_in[0]: rnn_state[0],
+                         self.local_AC.state_in[1]: rnn_state[1]}
 
         l, v_l, p_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
                                                                 self.local_AC.value_loss,
@@ -93,21 +104,30 @@ class Agent():
                 episode_reward = 0
                 episode_step_count = 0
                 d = False
-                r = 0
-                a = 0
+                if FLAGS.meta:
+                    r = 0
+                    a = 0
                 t = 0
 
                 s = self.env.reset()
                 rnn_state = self.local_AC.state_init
 
                 while not d:
-                    feed_dict = {
-                        self.local_AC.inputs: [s],
-                        self.local_AC.prev_rewards: [[r]],
-                        self.local_AC.timestep: [[t]],
-                        self.local_AC.prev_actions: [a],
-                        self.local_AC.state_in[0]: rnn_state[0],
-                        self.local_AC.state_in[1]: rnn_state[1]}
+
+                    if FLAGS.meta:
+                        feed_dict = {
+                            self.local_AC.inputs: [s],
+                            self.local_AC.prev_rewards: [[r]],
+                            self.local_AC.timestep: [[t]],
+                            self.local_AC.prev_actions: [a],
+                            self.local_AC.state_in[0]: rnn_state[0],
+                            self.local_AC.state_in[1]: rnn_state[1]}
+                    else:
+                        feed_dict = {
+                            self.local_AC.inputs: [s],
+                            self.local_AC.timestep: [[t]],
+                            self.local_AC.state_in[0]: rnn_state[0],
+                            self.local_AC.state_in[1]: rnn_state[1]}
 
                     pi, v, rnn_state_new = sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out], feed_dict=feed_dict)
@@ -116,7 +136,6 @@ class Agent():
 
                     rnn_state = rnn_state_new
                     s1, r, d, _ = self.env.step(a)
-
 
                     episode_buffer.append([s, a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])

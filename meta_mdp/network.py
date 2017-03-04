@@ -23,15 +23,21 @@ class ACNetwork():
 
             self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.inputs), 64,
                                                           activation_fn=tf.nn.elu)
+            summary_conv_act = tf.contrib.layers.summarize_activation(self.conv)
 
-            self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
-            self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
-            self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
-            self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
-                                                  name="Prev_Actions_OneHot")
+            if FLAGS.meta:
+                self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
+                self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
+                self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
+                self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
+                                                      name="Prev_Actions_OneHot")
 
-            hidden = tf.concat([self.conv, self.prev_rewards, self.prev_actions_onehot,
-                                   self.timestep], 1, name="Concatenated_input")
+                hidden = tf.concat([self.conv, self.prev_rewards, self.prev_actions_onehot,
+                                       self.timestep], 1, name="Concatenated_input")
+            else:
+                hidden = self.conv
+
+            summary_hidden_act = tf.contrib.layers.summarize_activation(hidden)
 
             lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)
             c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
@@ -53,13 +59,19 @@ class ACNetwork():
             self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
             rnn_out = tf.reshape(lstm_outputs, [-1, 48], name="RNN_out")
 
+            summary_rnn_act = tf.contrib.layers.summarize_activation(rnn_out)
+
             fc_pol_w = tf.get_variable("FC_Pol_W", shape=[48, FLAGS.nb_actions],
                                        initializer=normalized_columns_initializer(0.01))
             self.policy = tf.nn.softmax(tf.matmul(rnn_out, fc_pol_w, name="Policy"), name="Policy_soft")
 
+            summary_policy_act = tf.contrib.layers.summarize_activation(self.policy)
+
             fc_value_w = tf.get_variable("FC_Value_W", shape=[48, 1],
                                          initializer=normalized_columns_initializer(1.0))
             self.value = tf.matmul(rnn_out, fc_value_w, name="Value")
+
+            summary_value_act = tf.contrib.layers.summarize_activation(self.value)
 
             if scope != 'global':
                 self.actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Actions")
@@ -92,7 +104,8 @@ class ACNetwork():
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
-                self.worker_summaries = []
+                self.worker_summaries = [summary_conv_act, summary_hidden_act, summary_rnn_act, summary_policy_act,
+                                         summary_value_act]
                 for grad, weight in zip(grads, local_vars):
                     self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
                     self.worker_summaries.append(tf.summary.histogram(weight.name, weight))

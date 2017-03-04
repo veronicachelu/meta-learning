@@ -21,6 +21,8 @@ tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
 tf.app.flags.DEFINE_boolean('monitor', False,
                             """Monitor test with gym monitor""")
+tf.app.flags.DEFINE_boolean('meta', False,
+                            """Whether to use meta learning framwork or not""")
 tf.app.flags.DEFINE_integer('summary_interval', 500, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 500, """Number of episodes of interval between checkpoint saves""")
 tf.app.flags.DEFINE_integer('nb_actions', 4, """Number of actions to take""")
