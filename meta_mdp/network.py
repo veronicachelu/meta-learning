@@ -25,10 +25,11 @@ class ACNetwork():
                                                           activation_fn=tf.nn.elu)
             summary_conv_act = tf.contrib.layers.summarize_activation(self.conv)
 
+            self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
+
             if FLAGS.meta:
                 self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
                 self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
-                self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
                 self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                       name="Prev_Actions_OneHot")
 
