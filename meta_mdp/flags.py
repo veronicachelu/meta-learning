@@ -15,6 +15,8 @@ tf.app.flags.DEFINE_string('checkpoint_dir', './models',
                            """Directory where to save model checkpoints.""")
 tf.app.flags.DEFINE_string('summaries_dir', './summaries',
                            """Directory where to write event logs""")
+tf.app.flags.DEFINE_string('experiments_dir', './experiments',
+                           """Directory where to write event experiments""")
 tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
 tf.app.flags.DEFINE_boolean('monitor', False,
