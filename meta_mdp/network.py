@@ -48,7 +48,7 @@ class ACNetwork():
             self.state_in = (c_in, h_in)
 
             rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
-            step_size = tf.shape(self.prev_rewards)[:1]
+            step_size = tf.shape(self.inputs)[:1]
             state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
 
             lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
