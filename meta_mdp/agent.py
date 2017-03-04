@@ -75,13 +75,16 @@ class Agent():
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
 
-        total_steps = 0
         if not FLAGS.train:
             test_episode_count = 0
+
+        total_steps = 0
 
         print("Starting worker " + str(self.thread_id))
         with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
+                if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
+                    return 0
 
                 sess.run(self.update_local_vars)
                 episode_buffer = []
@@ -113,6 +116,8 @@ class Agent():
 
                     rnn_state = rnn_state_new
                     s1, r, d, _ = self.env.step(a)
+
+
                     episode_buffer.append([s, a, r, t, d, v[0, 0]])
                     episode_values.append(v[0, 0])
                     episode_reward += r
@@ -122,12 +127,19 @@ class Agent():
 
                     s = s1
 
+                    if t > 100:
+                        d = True
+
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     l, v_l, p_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0)
+
+                if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
+                    print("Mean reward for the model is {}".format(np.mean(self.episode_rewards)))
+                    return 1
 
                 if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0 and \
                                 self.name == 'worker_0':

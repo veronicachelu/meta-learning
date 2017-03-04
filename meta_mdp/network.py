@@ -18,10 +18,8 @@ class ACNetwork():
             self.image_summaries = []
             with tf.variable_scope('inputs'):
                 tf.get_variable_scope().reuse_variables()
-                for i in range(FLAGS.game_channels):
-                    self.image_summaries.append(
-                        tf.summary.image('inputs/frames/{}'.format(i), self.inputs,
-                                         max_outputs=1))
+                self.image_summaries.append(
+                    tf.summary.image('input', self.inputs, max_outputs=1))
 
             self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.inputs), 64,
                                                           activation_fn=tf.nn.elu)

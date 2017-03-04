@@ -28,8 +28,8 @@ tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads"
 tf.app.flags.DEFINE_float('gamma', 0.95, """Gamma value""")
 tf.app.flags.DEFINE_float('lr', 1e-3, """Learning rate""")
 tf.app.flags.DEFINE_float('beta_v', 0.05, """Coefficient of value function loss""")
-tf.app.flags.DEFINE_integer('max_nb_episodes_train', 20000, """Max number of episodes of training time""")
+tf.app.flags.DEFINE_integer('max_nb_episodes_train', 30000, """Max number of episodes of training time""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
-tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
+tf.app.flags.DEFINE_integer('nb_test_episodes', 5, """Test episodes""")
 tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimation""")
