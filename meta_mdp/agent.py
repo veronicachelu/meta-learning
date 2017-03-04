@@ -122,7 +122,7 @@ class Agent():
 
                     s = s1
 
-                self.episode_rewards.append(np.sum(episode_reward))
+                self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
 
