@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
 from utils import normalized_columns_initializer
+from fast_weights import LayerNormFastWeightsBasicRNNCell
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -40,25 +41,41 @@ class ACNetwork():
 
             summary_hidden_act = tf.contrib.layers.summarize_activation(hidden)
 
-            lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)
-            c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
-            h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
-            self.state_init = [c_init, h_init]
-            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
-            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
-            self.state_in = (c_in, h_in)
-
             rnn_in = tf.expand_dims(hidden, [0], name="RNN_input")
             step_size = tf.shape(self.inputs)[:1]
-            state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
 
-            lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-                lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
-                time_major=False)
+            if FLAGS.fw:
+                rnn_cell = LayerNormFastWeightsBasicRNNCell(48)
+                self.initial_state = rnn_cell.zero_state(48)
+                self.initial_fast_weights = rnn_cell.zero_fast_weights(48)
+                self.state_init = [self.initial_state, self.initial_fast_weights]
+                h_in = tf.placeholder(tf.float32, [1, 48], name="hidden_state")
+                fw_in = tf.placeholder(tf.float32, [1, 48], name="fast_weights")
+                self.state_in = (h_in, fw_in)
 
-            lstm_c, lstm_h = lstm_state
-            self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-            rnn_out = tf.reshape(lstm_outputs, [-1, 48], name="RNN_out")
+                rnn_outputs, rnn_state = tf.nn.dynamic_rnn(
+                    rnn_cell, rnn_in, initial_state=self.state_in, sequence_length=step_size,
+                    time_major=False)
+                rnn_h, rnn_fw = rnn_state
+                self.state_out = (rnn_h[:1, :], rnn_fw[:1, :])
+                rnn_out = tf.reshape(rnn_outputs, [-1, 48], name="RNN_out")
+            else:
+                lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)
+                c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
+                h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
+                self.state_init = [c_init, h_init]
+                c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c], name="c_in")
+                h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h], name="h_in")
+                self.state_in = (c_in, h_in)
+                state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
+
+                lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+                    lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
+                    time_major=False)
+
+                lstm_c, lstm_h = lstm_state
+                self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
+                rnn_out = tf.reshape(lstm_outputs, [-1, 48], name="RNN_out")
 
             summary_rnn_act = tf.contrib.layers.summarize_activation(rnn_out)
 

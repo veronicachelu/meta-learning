@@ -35,3 +35,5 @@ tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value"""
 tf.app.flags.DEFINE_integer('nb_test_episodes', 5, """Test episodes""")
 tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimation""")
+tf.app.flags.DEFINE_boolean('fw', True,
+                            """Whether to use fast weights""")
