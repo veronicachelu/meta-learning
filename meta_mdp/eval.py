@@ -17,7 +17,7 @@ FLAGS = tf.app.flags.FLAGS
 class PolicyMonitor(object):
     def __init__(self, game, optimizer, global_step):
         self.name = "policy_eval"
-        self.local_AC = ACNetwork(self.name, optimizer, self.global_step)
+        self.local_AC = ACNetwork(self.name, optimizer, global_step)
         self.update_local_ops = update_target_graph('global', self.name)
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/policy_eval")
         self.env = game
