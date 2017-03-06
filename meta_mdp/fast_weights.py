@@ -53,9 +53,8 @@ class LayerNormFastWeightsBasicRNNCell(core_rnn_cell.RNNCell):
 
   def _norm(self, inp, scope=None):
     reuse = tf.get_variable_scope().reuse
-    with vs.variable_scope(scope or "Norm") as scope:
-      normalized = layer_norm(inp, reuse=reuse, scope=scope)
-      return normalized
+    normalized = layer_norm(inp, reuse=reuse, scope=scope)
+    return normalized
 
   def _fwlinear(self, args, output_size, scope=None):
     if args is None or (nest.is_sequence(args) and not args):
@@ -68,9 +67,9 @@ class LayerNormFastWeightsBasicRNNCell(core_rnn_cell.RNNCell):
     dtype = [a.dtype for a in args][0]
 
     with vs.variable_scope(scope or "Linear"):
-      matrixW = vs.get_variable(
-        "MatrixW", dtype=dtype, initializer=tf.convert_to_tensor(np.eye(output_size, dtype=np.float32) * .05))
-
+      # matrixW = vs.get_variable(
+      #   "MatrixW", dtype=dtype, initializer=tf.convert_to_tensor(np.eye(output_size, dtype=np.float32) * .05))
+      matrixW = vs.get_variable("MatrixW", [output_size, output_size], dtype=dtype)
       matrixC = vs.get_variable(
         "MatrixC", [args[1].get_shape().as_list()[1], output_size], dtype=dtype)
 
@@ -89,8 +88,7 @@ class LayerNormFastWeightsBasicRNNCell(core_rnn_cell.RNNCell):
     """
     state_size = self.state_size
 
-    zeros = array_ops.zeros(
-        array_ops.pack([batch_size, state_size, state_size]), dtype=dtype)
+    zeros = array_ops.zeros(tf.stack([batch_size, state_size, state_size]), dtype=dtype)
     zeros.set_shape([None, state_size, state_size])
 
     return zeros
@@ -120,17 +118,15 @@ class LayerNormFastWeightsBasicRNNCell(core_rnn_cell.RNNCell):
         See Eqn (2) in the paper.
         """
         if not self._reuse_norm:
-          h = self._activation(self._norm(linear +
-                                          math_ops.batch_matmul(fast_weights, h), scope="Norm%d" % (i + 1)))
+          h = self._activation(self._norm(linear + tf.matmul(fast_weights, h), scope="Norm%d" % (i + 1)))
         else:
-          h = self._activation(self._norm(linear +
-                                          math_ops.batch_matmul(fast_weights, h)))
+          h = self._activation(self._norm(linear + tf.matmul(fast_weights, h)))
 
       """
       Compute A(t+1)  according to Eqn (4)
       """
       state = self._vector2matrix(state)
-      new_fast_weights = self._lambda * fast_weights + self._eta * math_ops.batch_matmul(state, state, adj_y=True)
+      new_fast_weights = self._lambda * fast_weights + self._eta * tf.matmul(state, state, adjoint_b=True)
 
       h = self._matrix2vector(h)
 

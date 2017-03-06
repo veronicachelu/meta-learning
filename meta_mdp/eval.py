@@ -49,13 +49,20 @@ class PolicyMonitor(object):
             rnn_state = self.local_AC.state_init
 
             while not d:
-                feed_dict = {
-                    self.local_AC.inputs: [s],
-                    self.local_AC.prev_rewards: [[r]],
-                    self.local_AC.timestep: [[t]],
-                    self.local_AC.prev_actions: [a],
-                    self.local_AC.state_in[0]: rnn_state[0],
-                    self.local_AC.state_in[1]: rnn_state[1]}
+                if FLAGS.meta:
+                    feed_dict = {
+                        self.local_AC.inputs: [s],
+                        self.local_AC.prev_rewards: [[r]],
+                        self.local_AC.timestep: [[t]],
+                        self.local_AC.prev_actions: [a],
+                        self.local_AC.state_in[0]: rnn_state[0],
+                        self.local_AC.state_in[1]: rnn_state[1]}
+                else:
+                    feed_dict = {
+                        self.local_AC.inputs: [s],
+                        self.local_AC.timestep: [[t]],
+                        self.local_AC.state_in[0]: rnn_state[0],
+                        self.local_AC.state_in[1]: rnn_state[1]}
 
                 pi, v, rnn_state_new = sess.run(
                     [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out], feed_dict=feed_dict)

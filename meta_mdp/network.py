@@ -22,8 +22,10 @@ class ACNetwork():
                 self.image_summaries.append(
                     tf.summary.image('input', self.inputs, max_outputs=1))
 
-            self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.inputs), 64,
-                                                          activation_fn=tf.nn.elu)
+            self.conv = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.inputs), 64)
+            self.conv = tf.contrib.layers.layer_norm(self.conv)
+            self.conv = tf.nn.elu(self.conv)
+
             summary_conv_act = tf.contrib.layers.summarize_activation(self.conv)
 
             self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
@@ -46,11 +48,13 @@ class ACNetwork():
 
             if FLAGS.fw:
                 rnn_cell = LayerNormFastWeightsBasicRNNCell(48)
-                self.initial_state = rnn_cell.zero_state(48)
-                self.initial_fast_weights = rnn_cell.zero_fast_weights(48)
-                self.state_init = [self.initial_state, self.initial_fast_weights]
+                # self.initial_state = rnn_cell.zero_state(tf.shape(self.inputs)[0], tf.float32)
+                # self.initial_fast_weights = rnn_cell.zero_fast_weights(tf.shape(self.inputs)[0], tf.float32)
+                h_init = np.zeros((1, 48), np.float32)
+                fw_init = np.zeros((1, 48, 48), np.float32)
+                self.state_init = [h_init, fw_init]
                 h_in = tf.placeholder(tf.float32, [1, 48], name="hidden_state")
-                fw_in = tf.placeholder(tf.float32, [1, 48], name="fast_weights")
+                fw_in = tf.placeholder(tf.float32, [1, 48, 48], name="fast_weights")
                 self.state_in = (h_in, fw_in)
 
                 rnn_outputs, rnn_state = tf.nn.dynamic_rnn(
