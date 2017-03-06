@@ -5,9 +5,9 @@ tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', True,
+tf.app.flags.DEFINE_boolean('train', False,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('show_training', False,
                             """Show windows with workers training""")
@@ -35,5 +35,5 @@ tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value"""
 tf.app.flags.DEFINE_integer('nb_test_episodes', 5, """Test episodes""")
 tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimation""")
-tf.app.flags.DEFINE_boolean('fw', True,
+tf.app.flags.DEFINE_boolean('fw', False,
                             """Whether to use fast weights""")
