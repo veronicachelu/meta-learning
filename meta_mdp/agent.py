@@ -29,7 +29,7 @@ class Agent():
         self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
-    def train(self, rollout, sess, bootstrap_value):
+    def train(self, rollout, sess, bootstrap_value, summaries=False):
         rollout = np.array(rollout)
         observations = rollout[:, 0]
         actions = rollout[:, 1]
@@ -70,17 +70,21 @@ class Agent():
                          self.local_AC.state_in[0]: rnn_state[0],
                          self.local_AC.state_in[1]: rnn_state[1]}
 
-        l, v_l, p_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
-                                                                self.local_AC.value_loss,
-                                                                self.local_AC.policy_loss,
-                                                                self.local_AC.entropy,
-                                                                self.local_AC.grad_norms,
-                                                                self.local_AC.var_norms,
-                                                                self.local_AC.apply_grads,
-                                                                self.local_AC.merged_summary,
-                                                                self.local_AC.image_summaries],
-                                                               feed_dict=feed_dict)
-        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms, img_summ
+        if summaries:
+            l, v_l, p_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
+                                                                    self.local_AC.value_loss,
+                                                                    self.local_AC.policy_loss,
+                                                                    self.local_AC.entropy,
+                                                                    self.local_AC.grad_norms,
+                                                                    self.local_AC.var_norms,
+                                                                    self.local_AC.apply_grads,
+                                                                    self.local_AC.merged_summary,
+                                                                    self.local_AC.image_summaries],
+                                                                   feed_dict=feed_dict)
+            return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms, img_summ
+        else:
+            _ = self.sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
+            return None
 
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
@@ -152,7 +156,10 @@ class Agent():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
-                    l, v_l, p_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0)
+                    if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
+                        l, v_l, p_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0, summaries=True)
+                    else:
+                        self.train(episode_buffer, sess, 0.0)
 
                 if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
                     print("Mean reward for the model is {}".format(np.mean(self.episode_rewards)))

@@ -108,7 +108,7 @@ class Worker():
                 rollout), g_n, v_n, ms, img_summ, max_v, min_v, mean_v, max_r, min_r, mean_r
         else:
             _ = self.sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
-        return None
+            return None
 
     def play(self, coord, saver):
         episode_count = self.sess.run(self.global_episode)
