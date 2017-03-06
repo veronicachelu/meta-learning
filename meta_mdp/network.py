@@ -63,7 +63,7 @@ class ACNetwork():
                 self.state_out = (rnn_h[:1, :], rnn_fw[:1, :])
                 rnn_out = tf.reshape(rnn_outputs, [-1, 48], name="RNN_out")
             else:
-                lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(48, state_is_tuple=True)
+                lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(48)
                 c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
                 h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
                 self.state_init = [c_init, h_init]
