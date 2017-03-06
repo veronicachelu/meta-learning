@@ -6,10 +6,7 @@ import numpy as np
 import tensorflow as tf
 import time
 
-from gym.wrappers import Monitor
-from atari_environment import AtariEnvironment
 from network import ACNetwork
-from network_lstm import ACNetworkLSTM
 from utils import update_target_graph
 import gym
 import flags
@@ -20,7 +17,7 @@ FLAGS = tf.app.flags.FLAGS
 class PolicyMonitor(object):
     def __init__(self, game, optimizer, global_step):
         self.name = "policy_eval"
-        self.local_AC = ACNetwork(self.name, optimizer, self.global_episode)
+        self.local_AC = ACNetwork(self.name, optimizer, self.global_step)
         self.update_local_ops = update_target_graph('global', self.name)
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/policy_eval")
         self.env = game

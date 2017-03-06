@@ -30,7 +30,6 @@ def run():
             gym_env_monitor = gym.make(FLAGS.game)
             pe = PolicyMonitor(
                 game=gym_env_monitor,
-                nb_actions=FLAGS.nb_actions,
                 optimizer=optimizer,
                 global_step=global_step
             )
