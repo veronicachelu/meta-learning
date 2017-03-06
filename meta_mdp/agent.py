@@ -83,7 +83,7 @@ class Agent():
                                                                    feed_dict=feed_dict)
             return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms, img_summ
         else:
-            _ = self.sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
+            _ = sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
             return None
 
     def play(self, sess, coord, saver):
