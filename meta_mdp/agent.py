@@ -66,7 +66,6 @@ class Agent():
             feed_dict = {self.local_AC.target_v: discounted_rewards,
                          self.local_AC.inputs: np.stack(observations, axis=0),
                          self.local_AC.actions: actions,
-                         self.local_AC.timestep: np.vstack(timesteps),
                          self.local_AC.advantages: policy_target,
                          self.local_AC.state_in[0]: rnn_state[0],
                          self.local_AC.state_in[1]: rnn_state[1]}
@@ -125,7 +124,6 @@ class Agent():
                     else:
                         feed_dict = {
                             self.local_AC.inputs: [s],
-                            self.local_AC.timestep: [[t]],
                             self.local_AC.state_in[0]: rnn_state[0],
                             self.local_AC.state_in[1]: rnn_state[1]}
 

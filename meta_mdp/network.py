@@ -28,9 +28,8 @@ class ACNetwork():
 
             summary_conv_act = tf.contrib.layers.summarize_activation(self.conv)
 
-            self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
-
             if FLAGS.meta:
+                self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
                 self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
                 self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
                 self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
@@ -64,7 +63,7 @@ class ACNetwork():
                 self.state_out = (rnn_h[:1, :], rnn_fw[:1, :])
                 rnn_out = tf.reshape(rnn_outputs, [-1, 48], name="RNN_out")
             else:
-                lstm_cell = tf.contrib.rnn.BasicLSTMCell(48, state_is_tuple=True)
+                lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(48, state_is_tuple=True)
                 c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
                 h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
                 self.state_init = [c_init, h_init]
@@ -109,15 +108,15 @@ class ACNetwork():
                 self.value_loss = FLAGS.beta_v * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value, [-1])))
                 self.entropy = - tf.reduce_sum(self.policy * tf.log(self.policy + 1e-7))
 
-                starter_beta_e = 1.0
-                end_beta_e = 0.0
-                decay_steps = 20000
-                self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
-                                                        decay_steps, end_beta_e,
-                                                        power=0.5)
+                # starter_beta_e = 1.0
+                # end_beta_e = 0.0
+                # decay_steps = 20000
+                # self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
+                #                                         decay_steps, end_beta_e,
+                #                                         power=0.5)
 
                 self.policy_loss = -tf.reduce_sum(
-                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) - self.entropy * self.beta_e
+                    tf.log(self.responsible_outputs + 1e-7) * self.advantages) - self.entropy * FLAGS.beta_e
 
                 self.loss = self.value_loss + self.policy_loss
 
