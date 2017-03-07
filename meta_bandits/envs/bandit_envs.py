@@ -45,6 +45,7 @@ class TwoArms():
             self.bandit = np.random.uniform(size=2)
 
     def set(self, bandit):
+        self.timestep = 0
         self.bandit = bandit
 
     def pull_arm(self, action):
