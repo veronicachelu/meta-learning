@@ -86,8 +86,8 @@ class Worker():
                 sess.run(self.update_local_vars)
                 episode_buffer = []
 
-                # if not FLAGS.train:
-                #     print("Episode {}".format(test_episode_count))
+                if not FLAGS.train:
+                    print("Episode {}".format(test_episode_count))
 
                 episode_rewards_for_optimal_arm = 0
                 episode_suboptimal_arm = 0
@@ -146,11 +146,11 @@ class Worker():
                 self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
                 self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
 
-                # if not FLAGS.train:
-                #     print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
-                #                                                                      episode_rewards_for_optimal_arm))
-                #     print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
-                #     print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
+                if not FLAGS.train:
+                    print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
+                                                                                     episode_rewards_for_optimal_arm))
+                    print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
+                    print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
 
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
@@ -158,13 +158,12 @@ class Worker():
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0, self.settings)
 
-                if episode_count % FLAGS.nb_test_episodes:
-                    episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards[-150:], self.episode_rewards[-150:])]
-                    mean_regret = np.mean(episode_regret)
-                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-150:])
-
                 if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
+                    episode_regret = [max(o - r, 0) for (o, r) in
+                                      zip(self.episode_optimal_rewards, self.episode_rewards)]
+                    mean_regret = np.mean(episode_regret)
+                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms)
+
                     if FLAGS.hypertune:
                         with open(FLAGS.results_val_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(

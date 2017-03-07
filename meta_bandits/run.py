@@ -98,7 +98,7 @@ def run(settings):
         worker_threads = []
         for worker in workers:
             worker_play = lambda: worker.play(sess, coord, saver)
-            thread = threading.Thread(target=(worker_play))
+            thread = threading.Thread(target=worker_play)
             thread.start()
             worker_threads.append(thread)
         coord.join(worker_threads)
