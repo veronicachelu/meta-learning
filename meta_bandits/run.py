@@ -60,6 +60,25 @@ def recreate_subdirectory_structure(settings):
             tf.gfile.MakeDirs(settings["summaries_dir"])
 
 
+def run_one_test():
+    recreate_directory_structure()
+
+    model_name = "one_test"
+    checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
+    summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
+    frames_dir = os.path.join(FLAGS.frames_dir, model_name)
+
+    settings = {"lr": FLAGS.lr,
+                "gamma": FLAGS.gamma,
+                "game": FLAGS.game,
+                "model_name": model_name,
+                "checkpoint_dir": checkpoint_dir,
+                "summaries_dir": summaries_dir,
+                "frames_dir": frames_dir}
+
+    run(settings)
+
+
 def run(settings):
     recreate_subdirectory_structure(settings)
     tf.reset_default_graph()
@@ -206,7 +225,10 @@ def test():
             run(settings)
 
 if __name__ == '__main__':
-    if FLAGS.hypertune:
-        hypertune(FLAGS.game)
+    if FLAGS.one_test:
+        run_one_test()
     else:
-        test()
+        if FLAGS.hypertune:
+            hypertune(FLAGS.game)
+        else:
+            test()
