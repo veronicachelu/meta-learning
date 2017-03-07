@@ -5,9 +5,9 @@ tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', False,
+tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('show_training', False,
                             """Show windows with workers training""")
@@ -23,8 +23,8 @@ tf.app.flags.DEFINE_boolean('monitor', False,
                             """Monitor test with gym monitor""")
 tf.app.flags.DEFINE_boolean('meta', True,
                             """Whether to use meta learning framwork or not""")
-tf.app.flags.DEFINE_integer('summary_interval', 500, """Number of episodes of interval between summary saves""")
-tf.app.flags.DEFINE_integer('checkpoint_interval', 500, """Number of episodes of interval between checkpoint saves""")
+tf.app.flags.DEFINE_integer('summary_interval', 2000, """Number of episodes of interval between summary saves""")
+tf.app.flags.DEFINE_integer('checkpoint_interval', 2000, """Number of episodes of interval between checkpoint saves""")
 tf.app.flags.DEFINE_integer('nb_actions', 4, """Number of actions to take""")
 tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_float('gamma', 0.95, """Gamma value""")
