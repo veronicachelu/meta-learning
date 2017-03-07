@@ -203,15 +203,18 @@ class Worker():
                     mean_reward = np.mean(self.episode_rewards[-50:])
                     mean_length = np.mean(self.episode_lengths[-50:])
                     mean_value = np.mean(self.episode_mean_values[-50:])
+                    episode_regret = [max(o - r, 0) for (o, r) in
+                                      zip(self.episode_optimal_rewards[-50:], self.episode_rewards[-50:])]
+                    mean_regret = np.mean(episode_regret)
+                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-50:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
                     if FLAGS.train:
-                        if episode_count % FLAGS.nb_test_episodes:
-                            self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
-                            self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
+                        self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
+                        self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
                         self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
                         self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
                         self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
