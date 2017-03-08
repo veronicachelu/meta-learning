@@ -180,8 +180,8 @@ class Worker():
                                 self.settings["gamma"],
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
-                        print("Mean regret for the model is {}".format(mean_regret))
-                        print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
+                    print("Mean regret for the model is {}".format(mean_regret))
+                    print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
                 # if not FLAGS.train:
