@@ -86,8 +86,8 @@ class Worker():
                 sess.run(self.update_local_vars)
                 episode_buffer = []
 
-                if not FLAGS.train:
-                    print("Episode {}".format(test_episode_count))
+                # if not FLAGS.train:
+                #     print("Episode {}".format(test_episode_count))
 
                 episode_rewards_for_optimal_arm = 0
                 episode_suboptimal_arm = 0
@@ -146,11 +146,11 @@ class Worker():
                 self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
                 self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
 
-                if not FLAGS.train:
-                    print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
-                                                                                     episode_rewards_for_optimal_arm))
-                    print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
-                    print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
+                # if not FLAGS.train:
+                #     print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
+                #                                                                      episode_rewards_for_optimal_arm))
+                #     print("Regret is {}".format(max(episode_rewards_for_optimal_arm - np.sum(episode_reward), 0)))
+                #     print("Suboptimal arms in the episode: {}".format(episode_suboptimal_arm))
 
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_values.append(np.mean(episode_values))
@@ -180,8 +180,8 @@ class Worker():
                                 self.settings["gamma"],
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
-                        # print("Mean regret for the model is {}".format(mean_regret))
-                        # print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
+                        print("Mean regret for the model is {}".format(mean_regret))
+                        print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
                 # if not FLAGS.train:
