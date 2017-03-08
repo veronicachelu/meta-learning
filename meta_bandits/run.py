@@ -66,6 +66,7 @@ def run_baseline():
     model_name = "baseline"
 
     settings = {"model_name": model_name,
+                "game": FLAGS.game,
                 "envs": test_envs}
 
     tf.reset_default_graph()
