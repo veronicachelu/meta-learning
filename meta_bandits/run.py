@@ -279,7 +279,7 @@ def test():
 
 if __name__ == '__main__':
     if FLAGS.one_test:
-        if FLAGS.random:
+        if FLAGS.baseline:
             run_baseline()
         else:
             run_one_test()
