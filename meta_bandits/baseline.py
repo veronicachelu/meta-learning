@@ -35,7 +35,7 @@ class RandomAgent():
             self.env.set(self.settings["envs"][test_episode_count])
 
             while not d:
-                a = random.randint(0, FLAGS.nb_actions)
+                a = random.randint(0, FLAGS.nb_actions - 1)
                 r, d, t = self.env.pull_arm(a)
 
                 episode_rewards_for_optimal_arm += self.env.pull_arm_for_test()
