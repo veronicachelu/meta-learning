@@ -3,9 +3,9 @@ import tensorflow as tf
 # Basic model parameters.
 tf.app.flags.DEFINE_string('game', 'independent',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', True,
+tf.app.flags.DEFINE_boolean('train', False,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('hypertune', True,
                             """Whether to hypertune params or load best params to test""")
@@ -37,6 +37,6 @@ tf.app.flags.DEFINE_boolean('gen_adv', False,
                             """Whether to use generalized advantage estimation""")
 tf.app.flags.DEFINE_boolean('one_test', True,
                             """Whether to use hypertuning or just run a simple test""")
-tf.app.flags.DEFINE_boolean('random', True,
+tf.app.flags.DEFINE_boolean('baseline', True,
                             """Whether to use run random agent""")
 
