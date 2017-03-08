@@ -9,7 +9,7 @@ from utils import normalized_columns_initializer
 FLAGS = tf.app.flags.FLAGS
 
 
-class AC_Network():
+class ACNetwork():
     def __init__(self, scope, trainer, global_step=None):
         with tf.variable_scope(scope):
             self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")

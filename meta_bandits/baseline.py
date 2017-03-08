@@ -6,7 +6,7 @@ from utils import update_target_graph, discount, set_image_bandit, set_image_ban
 FLAGS = tf.app.flags.FLAGS
 
 
-class Agent():
+class Worker():
     def __init__(self, game, thread_id, optimizer, global_step, settings):
         self.name = "worker_" + str(thread_id)
         self.thread_id = thread_id

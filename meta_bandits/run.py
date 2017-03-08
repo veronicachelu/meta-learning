@@ -3,9 +3,9 @@ import threading
 import tensorflow as tf
 import random
 import numpy as np
-from agent import Worker
+from agent import Agent
 from envs.bandit_envs import TwoArms, ElevenArms
-from network import AC_Network
+from network import ACNetwork
 import flags
 import os
 
@@ -106,20 +106,20 @@ def run(settings):
     with tf.device("/cpu:0"):
         global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
         optimizer = tf.train.AdamOptimizer(learning_rate=settings["lr"])
-        global_network = AC_Network('global', None)
+        global_network = ACNetwork('global', None)
 
-        num_workers = 1
-        workers = []
+        num_agents = 1
+        agents = []
         envs = []
-        for i in range(num_workers):
+        for i in range(num_agents):
             if settings["game"] == '11arms':
                 this_env = ElevenArms()
             else:
                 this_env = TwoArms(settings["game"])
             envs.append(this_env)
 
-        for i in range(num_workers):
-            workers.append(Worker(envs[i], i, optimizer, global_step, settings))
+        for i in range(num_agents):
+            agents.append(Agent(envs[i], i, optimizer, global_step, settings))
         saver = tf.train.Saver(max_to_keep=5)
 
     with tf.Session() as sess:
@@ -134,13 +134,13 @@ def run(settings):
         else:
             sess.run(tf.global_variables_initializer())
 
-        worker_threads = []
-        for worker in workers:
-            worker_play = lambda: worker.play(sess, coord, saver)
-            thread = threading.Thread(target=worker_play)
+        agent_threads = []
+        for agent in agents:
+            agent_play = lambda: agent.play(sess, coord, saver)
+            thread = threading.Thread(target=agent_play)
             thread.start()
-            worker_threads.append(thread)
-        coord.join(worker_threads)
+            agent_threads.append(thread)
+        coord.join(agent_threads)
 
 
 def hypertune(game):
