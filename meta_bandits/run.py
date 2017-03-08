@@ -6,6 +6,7 @@ import numpy as np
 from agent import Agent
 from envs.bandit_envs import TwoArms, ElevenArms
 from network import ACNetwork
+from baseline import RandomAgent
 import flags
 import os
 
@@ -59,6 +60,40 @@ def recreate_subdirectory_structure(settings):
             tf.gfile.DeleteRecursively(settings["summaries_dir"])
             tf.gfile.MakeDirs(settings["summaries_dir"])
 
+def run_baseline():
+    test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
+
+    model_name = "baseline"
+
+    settings = {"model_name": model_name,
+                "envs": test_envs}
+
+    tf.reset_default_graph()
+
+    with tf.device("/cpu:0"):
+        num_agents = 1
+        agents = []
+        envs = []
+        for i in range(num_agents):
+            if settings["game"] == '11arms':
+                this_env = ElevenArms()
+            else:
+                this_env = TwoArms(settings["game"])
+            envs.append(this_env)
+
+        for i in range(num_agents):
+            agents.append(RandomAgent(envs[i], i, settings))
+
+    with tf.Session() as sess:
+        coord = tf.train.Coordinator()
+
+        agent_threads = []
+        for agent in agents:
+            agent_play = lambda: agent.play(coord)
+            thread = threading.Thread(target=agent_play)
+            thread.start()
+            agent_threads.append(thread)
+        coord.join(agent_threads)
 
 def run_one_test():
 
@@ -77,8 +112,6 @@ def run_one_test():
                     "checkpoint_dir": checkpoint_dir,
                     "summaries_dir": summaries_dir,
                     "frames_dir": frames_dir}
-
-
     else:
         test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
 
@@ -246,7 +279,10 @@ def test():
 
 if __name__ == '__main__':
     if FLAGS.one_test:
-        run_one_test()
+        if FLAGS.random:
+            run_baseline()
+        else:
+            run_one_test()
     else:
         if FLAGS.hypertune:
             hypertune(FLAGS.game)

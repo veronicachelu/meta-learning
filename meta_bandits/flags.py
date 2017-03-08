@@ -37,4 +37,6 @@ tf.app.flags.DEFINE_boolean('gen_adv', False,
                             """Whether to use generalized advantage estimation""")
 tf.app.flags.DEFINE_boolean('one_test', True,
                             """Whether to use hypertuning or just run a simple test""")
+tf.app.flags.DEFINE_boolean('random', True,
+                            """Whether to use run random agent""")
 

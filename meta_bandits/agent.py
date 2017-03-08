@@ -8,7 +8,7 @@ FLAGS = tf.app.flags.FLAGS
 
 class Agent():
     def __init__(self, game, thread_id, optimizer, global_step, settings):
-        self.name = "worker_" + str(thread_id)
+        self.name = "agent_" + str(thread_id)
         self.thread_id = thread_id
         self.model_path = settings["checkpoint_dir"]
         self.settings = settings
@@ -23,7 +23,7 @@ class Agent():
 
         self.episode_lengths = []
         self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter(settings["summaries_dir"] + "/worker_" + str(self.thread_id))
+        self.summary_writer = tf.summary.FileWriter(settings["summaries_dir"] + "/agent_" + str(self.thread_id))
         self.summary = tf.Summary()
 
         self.local_AC = AC_Network(self.name, optimizer, self.global_episode)
@@ -77,7 +77,7 @@ class Agent():
         if not FLAGS.train:
             test_episode_count = 0
 
-        print("Starting worker " + str(self.thread_id))
+        print("Starting agent " + str(self.thread_id))
         with sess.as_default(), sess.graph.as_default():
             while not coord.should_stop():
                 if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
@@ -190,12 +190,12 @@ class Agent():
                 #              duration=len(self.images) * 0.1, true_image=True)
 
                 if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
-                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
+                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'agent_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
-                    # if episode_count % FLAGS.frames_interval == 0 and self.name == 'worker_0':
+                    # if episode_count % FLAGS.frames_interval == 0 and self.name == 'agent_0':
                     #     self.images = np.array(episode_frames)
                     #     make_gif(self.images, self.settings.frames_dir + '/image' + str(episode_count) + '.gif',
                     #              duration=len(self.images) * 0.1, true_image=True)
@@ -254,7 +254,7 @@ class Agent():
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()
-                if self.name == 'worker_0':
+                if self.name == 'agent_0':
                     sess.run(self.increment_global_episode)
                 if not FLAGS.train:
                     test_episode_count += 1
