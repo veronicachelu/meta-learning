@@ -1,7 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from network import AC_Network
-from utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
 import random
 FLAGS = tf.app.flags.FLAGS
 
