@@ -10,30 +10,31 @@ from agent import Agent
 from network import ACNetwork
 import flags
 import multiprocessing
+import os
 FLAGS = tf.app.flags.FLAGS
 
 
 def recreate_directory_structure():
-    if not tf.gfile.Exists(FLAGS.checkpoint_dir):
-        tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
+    if not tf.gfile.Exists(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name)):
+        tf.gfile.MakeDirs(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
     else:
         if not FLAGS.resume and FLAGS.train:
-            tf.gfile.DeleteRecursively(FLAGS.checkpoint_dir)
-            tf.gfile.MakeDirs(FLAGS.checkpoint_dir)
+            tf.gfile.DeleteRecursively(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
+            tf.gfile.MakeDirs(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
 
-    if not tf.gfile.Exists(FLAGS.experiments_dir):
-        tf.gfile.MakeDirs(FLAGS.experiments_dir)
+    if not tf.gfile.Exists(os.path.join(FLAGS.experiments_dir, FLAGS.model_name)):
+        tf.gfile.MakeDirs(os.path.join(FLAGS.experiments_dir, FLAGS.model_name))
     else:
         if not FLAGS.resume and FLAGS.train:
-            tf.gfile.DeleteRecursively(FLAGS.experiments_dir)
-            tf.gfile.MakeDirs(FLAGS.experiments_dir)
+            tf.gfile.DeleteRecursively(os.path.join(FLAGS.experiments_dir, FLAGS.model_name))
+            tf.gfile.MakeDirs(os.path.join(FLAGS.experiments_dir, FLAGS.model_name))
 
-    if not tf.gfile.Exists(FLAGS.summaries_dir):
-        tf.gfile.MakeDirs(FLAGS.summaries_dir)
+    if not tf.gfile.Exists(os.path.join(FLAGS.summaries_dir, FLAGS.model_name)):
+        tf.gfile.MakeDirs(os.path.join(FLAGS.summaries_dir, FLAGS.model_name))
     else:
         if not FLAGS.resume and FLAGS.train:
-            tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
-            tf.gfile.MakeDirs(FLAGS.summaries_dir)
+            tf.gfile.DeleteRecursively(os.path.join(FLAGS.summaries_dir, FLAGS.model_name))
+            tf.gfile.MakeDirs(os.path.join(FLAGS.summaries_dir, FLAGS.model_name))
 
 # def sample_params():
 #     FLAGS.lr = 10 ** np.random.uniform(np.log10(10**(-2)), np.log10((10**(-4))))
@@ -59,8 +60,8 @@ def run():
 
             for i in range(num_agents):
                 gym_env = gym.make(FLAGS.game)
-                if FLAGS.monitor:
-                    gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+                # if FLAGS.monitor:
+                #     gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i), force=True)
                 envs.append(gym_env)
 
             for i in range(num_agents):
@@ -69,7 +70,7 @@ def run():
 
         coord = tf.train.Coordinator()
         if FLAGS.resume:
-            ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+            ckpt = tf.train.get_checkpoint_state(os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name))
             print("Loading Model from {}".format(ckpt.model_checkpoint_path))
             saver.restore(sess, ckpt.model_checkpoint_path)
         else:

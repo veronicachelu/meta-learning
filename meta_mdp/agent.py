@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from network import ACNetwork
 from utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
-
+import os
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -10,7 +10,7 @@ class Agent():
     def __init__(self, game, thread_id, optimizer, global_step):
         self.name = "worker_" + str(thread_id)
         self.thread_id = thread_id
-        self.model_path = FLAGS.checkpoint_dir
+        self.model_path = os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name)
         self.optimizer = optimizer
         self.global_episode = global_step
         self.increment_global_episode = self.global_episode.assign_add(1)
@@ -22,7 +22,7 @@ class Agent():
 
         self.episode_lengths = []
         self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/worker_" + str(self.thread_id))
+        self.summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.summaries_dir, FLAGS.model_name) + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
         self.local_AC = ACNetwork(self.name, optimizer, self.global_episode)
