@@ -60,7 +60,6 @@ class PolicyMonitor(object):
                 else:
                     feed_dict = {
                         self.local_AC.inputs: [s],
-                        self.local_AC.timestep: [[t]],
                         self.local_AC.state_in[0]: rnn_state[0],
                         self.local_AC.state_in[1]: rnn_state[1]}
 

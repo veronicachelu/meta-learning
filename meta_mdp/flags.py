@@ -6,9 +6,9 @@ tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
 tf.app.flags.DEFINE_string('model_name', "NoMetaNoGenAdvBetaV_0.25_BetaE_0.05", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', True,
+tf.app.flags.DEFINE_boolean('train', False,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_boolean('show_training', False,
                             """Show windows with workers training""")
@@ -18,9 +18,11 @@ tf.app.flags.DEFINE_string('summaries_dir', './summaries',
                            """Directory where to write event logs""")
 tf.app.flags.DEFINE_string('experiments_dir', './experiments',
                            """Directory where to write event experiments""")
+tf.app.flags.DEFINE_string('test_experiments_dir', './test_experiments',
+                           """Directory where to write event test experiments""")
 tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
-tf.app.flags.DEFINE_boolean('monitor', False,
+tf.app.flags.DEFINE_boolean('monitor', True,
                             """Monitor test with gym monitor""")
 tf.app.flags.DEFINE_boolean('meta', False,
                             """Whether to use meta learning framwork or not""")
