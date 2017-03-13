@@ -26,16 +26,17 @@ class Agent():
         self.summary_writer = tf.summary.FileWriter(settings["summaries_dir"] + "/agent_" + str(self.thread_id))
         self.summary = tf.Summary()
 
-        self.local_AC = AC_Network(self.name, optimizer, self.global_episode)
+        self.local_AC = ACNetwork(self.name, optimizer, self.global_episode)
         self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
-    def train(self, rollout, sess, bootstrap_value, settings):
+    def train(self, rollout, sess, bootstrap_value, settings, summaries=False):
         rollout = np.array(rollout)
         actions = rollout[:, 0]
         rewards = rollout[:, 1]
         timesteps = rollout[:, 2]
-        prev_rewards = [0] + rewards[:-1].tolist()
+        if FLAGS.meta:
+            prev_rewards = [0] + rewards[:-1].tolist()
         prev_actions = [0] + actions[:-1].tolist()
         values = rollout[:, 4]
 
@@ -50,25 +51,39 @@ class Agent():
             policy_target = advantages
 
         rnn_state = self.local_AC.state_init
-        feed_dict = {self.local_AC.target_v: discounted_rewards,
-                     self.local_AC.prev_rewards: np.vstack(prev_rewards),
-                     self.local_AC.prev_actions: prev_actions,
-                     self.local_AC.actions: actions,
-                     self.local_AC.timestep: np.vstack(timesteps),
-                     self.local_AC.advantages: policy_target,
-                     self.local_AC.state_in[0]: rnn_state[0],
-                     self.local_AC.state_in[1]: rnn_state[1]}
+        if FLAGS.meta:
+            feed_dict = {self.local_AC.target_v: discounted_rewards,
+                         self.local_AC.prev_rewards: np.vstack(prev_rewards),
+                         self.local_AC.prev_actions: prev_actions,
+                         self.local_AC.actions: actions,
+                         self.local_AC.timestep: np.vstack(timesteps),
+                         self.local_AC.advantages: policy_target,
+                         self.local_AC.state_in[0]: rnn_state[0],
+                         self.local_AC.state_in[1]: rnn_state[1]}
+        else:
+            feed_dict = {self.local_AC.target_v: discounted_rewards,
+                         self.local_AC.prev_actions: prev_actions,
+                         self.local_AC.actions: actions,
+                         self.local_AC.timestep: np.vstack(timesteps),
+                         self.local_AC.advantages: policy_target,
+                         self.local_AC.state_in[0]: rnn_state[0],
+                         self.local_AC.state_in[1]: rnn_state[1]}
 
-        l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
-                                                      self.local_AC.value_loss,
-                                                      self.local_AC.policy_loss,
-                                                      self.local_AC.entropy,
-                                                      self.local_AC.grad_norms,
-                                                      self.local_AC.var_norms,
-                                                      self.local_AC.apply_grads,
-                                                      self.local_AC.merged_summary],
-                                                     feed_dict=feed_dict)
-        return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
+        if summaries:
+            l, v_l, p_l, e_l, g_n, v_n, _, ms = sess.run([self.local_AC.loss,
+                                                          self.local_AC.value_loss,
+                                                          self.local_AC.policy_loss,
+                                                          self.local_AC.entropy,
+                                                          self.local_AC.grad_norms,
+                                                          self.local_AC.var_norms,
+                                                          self.local_AC.apply_grads,
+                                                          self.local_AC.merged_summary],
+                                                         feed_dict=feed_dict)
+
+            return l / len(rollout), v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n, ms
+        else:
+            _ = sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
+            return None
 
     def play(self, sess, coord, saver):
         episode_count = sess.run(self.global_episode)
@@ -96,7 +111,8 @@ class Agent():
                 episode_reward = [0 for _ in range(FLAGS.nb_actions)]
                 episode_step_count = 0
                 d = False
-                r = 0
+                if FLAGS.meta:
+                    r = 0
                 a = 0
                 t = 0
                 if not FLAGS.resume and FLAGS.train:
@@ -107,12 +123,19 @@ class Agent():
                 rnn_state = self.local_AC.state_init
 
                 while not d:
-                    feed_dict = {
-                        self.local_AC.prev_rewards: [[r]],
-                        self.local_AC.timestep: [[t]],
-                        self.local_AC.prev_actions: [a],
-                        self.local_AC.state_in[0]: rnn_state[0],
-                        self.local_AC.state_in[1]: rnn_state[1]}
+                    if FLAGS.meta:
+                        feed_dict = {
+                            self.local_AC.prev_rewards: [[r]],
+                            self.local_AC.timestep: [[t]],
+                            self.local_AC.prev_actions: [a],
+                            self.local_AC.state_in[0]: rnn_state[0],
+                            self.local_AC.state_in[1]: rnn_state[1]}
+                    else:
+                        feed_dict = {
+                            self.local_AC.timestep: [[t]],
+                            self.local_AC.prev_actions: [a],
+                            self.local_AC.state_in[0]: rnn_state[0],
+                            self.local_AC.state_in[1]: rnn_state[1]}
 
                     pi, v, rnn_state_new = sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out], feed_dict=feed_dict)
@@ -156,7 +179,10 @@ class Agent():
                 self.episode_mean_values.append(np.mean(episode_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
-                    l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0, self.settings)
+                    if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0, self.settings)
+                    else:
+                        self.train(episode_buffer, sess, 0.0, self.settings)
 
                 if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
                     episode_regret = [max(o - r, 0) for (o, r) in
@@ -189,7 +215,7 @@ class Agent():
                 #     make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
                 #              duration=len(self.images) * 0.1, true_image=True)
 
-                if FLAGS.train and episode_count % 50 == 0 and episode_count != 0:
+                if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'agent_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
@@ -200,13 +226,13 @@ class Agent():
                     #     make_gif(self.images, self.settings.frames_dir + '/image' + str(episode_count) + '.gif',
                     #              duration=len(self.images) * 0.1, true_image=True)
 
-                    mean_reward = np.mean(self.episode_rewards[-50:])
-                    mean_length = np.mean(self.episode_lengths[-50:])
-                    mean_value = np.mean(self.episode_mean_values[-50:])
+                    mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
+                    mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
+                    mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
                     episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards[-50:], self.episode_rewards[-50:])]
+                                      zip(self.episode_optimal_rewards[-FLAGS.summary_interval:], self.episode_rewards[-50:])]
                     mean_regret = np.mean(episode_regret)
-                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-50:])
+                    mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-FLAGS.summary_interval:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
