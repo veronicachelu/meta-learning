@@ -104,11 +104,11 @@ def run(settings):
             agent_threads.append(thread)
         coord.join(agent_threads)
 
-def thread_processing(game):
-    lr = 10 ** np.random.uniform(np.log10(10 ** (-2)), np.log10((10 ** (-4))))
-    gamma = np.random.uniform(0.7, 1.0)
+
+def thread_processing(lr, gamma, val_envs, game):
 
     model_name = "d_{}__lr_{}__gamma_{}".format(game, lr, gamma)
+    print(model_name)
     checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
     summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
     frames_dir = os.path.join(FLAGS.frames_dir, model_name)
@@ -119,19 +119,27 @@ def thread_processing(game):
                 "model_name": model_name,
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
-                "frames_dir": frames_dir}
+                "frames_dir": frames_dir,
+                "envs": val_envs}
 
     run(settings)
 
-def hypertune(game, nb_hyper_runs):
+
+def validate_hypertune():
     recreate_directory_structure()
 
-    if not FLAGS.resume and FLAGS.train:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-            for i in range(nb_hyper_runs):
-                _ = executor.submit(thread_processing, game)
+    model_instances = os.listdir(FLAGS.checkpoint_dir)
+    lrs = [inst.split("__")[1].split("_")[1] for inst in model_instances]
+    gammas = [inst.split("__")[2].split("_")[1] for inst in model_instances]
+
+    game = model_instances[0].split("__")[0].split("_")[1]
+
+    val_envs = TwoArms.get_envs(game, FLAGS.nb_test_episodes)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
+        for i in range(len(model_instances)):
+            _ = executor.submit(thread_processing, lrs[i], gammas[i], val_envs, game)
+
 
 if __name__ == '__main__':
-    game = 'independent'
-    nb_hyper_runs = 100
-    hypertune(game, nb_hyper_runs)
+    validate_hypertune()
