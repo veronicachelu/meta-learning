@@ -215,12 +215,12 @@ class Agent():
                 #     make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
                 #              duration=len(self.images) * 0.1, true_image=True)
 
-                if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'agent_0' and FLAGS.train == True:
-                        saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
-                                   global_step=self.global_episode)
-                        print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
+                if FLAGS.train == True and episode_count % FLAGS.checkpoint_interval == 0 and episode_count != 0:
+                    saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
+                               global_step=self.global_episode)
+                    print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
 
+                if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
                     # if episode_count % FLAGS.frames_interval == 0 and self.name == 'agent_0':
                     #     self.images = np.array(episode_frames)
                     #     make_gif(self.images, self.settings.frames_dir + '/image' + str(episode_count) + '.gif',
@@ -230,7 +230,8 @@ class Agent():
                     mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
                     mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
                     episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards[-FLAGS.summary_interval:], self.episode_rewards[-50:])]
+                                      zip(self.episode_optimal_rewards[-FLAGS.summary_interval:],
+                                          self.episode_rewards[-50:])]
                     mean_regret = np.mean(episode_regret)
                     mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-FLAGS.summary_interval:])
 
@@ -238,48 +239,48 @@ class Agent():
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     self.summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
 
-                    if FLAGS.train:
-                        self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
-                        self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
-                        self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
-                        self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
-                        self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
-                        self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
-                        self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
-                        self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
-                        summaries = tf.Summary().FromString(ms)
-                        sub_summaries_dict = {}
-                        for value in summaries.value:
-                            value_field = value.WhichOneof('value')
-                            value_ifo = sub_summaries_dict.setdefault(value.tag,
-                                                                      {'value_field': None, 'values': []})
-                            if not value_ifo['value_field']:
-                                value_ifo['value_field'] = value_field
-                            else:
-                                assert value_ifo['value_field'] == value_field
-                            value_ifo['values'].append(getattr(value, value_field))
+                    self.summary.value.add(tag='Mean Regret', simple_value=float(mean_regret))
+                    self.summary.value.add(tag='Mean NSuboptArms', simple_value=float(mean_nb_suboptimal_arms))
+                    self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
+                    self.summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
+                    self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
+                    self.summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
+                    self.summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
+                    self.summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                    summaries = tf.Summary().FromString(ms)
+                    sub_summaries_dict = {}
+                    for value in summaries.value:
+                        value_field = value.WhichOneof('value')
+                        value_ifo = sub_summaries_dict.setdefault(value.tag,
+                                                                  {'value_field': None, 'values': []})
+                        if not value_ifo['value_field']:
+                            value_ifo['value_field'] = value_field
+                        else:
+                            assert value_ifo['value_field'] == value_field
+                        value_ifo['values'].append(getattr(value, value_field))
 
-                        for name, value_ifo in sub_summaries_dict.items():
-                            summary_value = self.summary.value.add()
-                            summary_value.tag = name
-                            if value_ifo['value_field'] == 'histo':
-                                values = value_ifo['values']
-                                summary_value.histo.min = min([x.min for x in values])
-                                summary_value.histo.max = max([x.max for x in values])
-                                summary_value.histo.num = sum([x.num for x in values])
-                                summary_value.histo.sum = sum([x.sum for x in values])
-                                summary_value.histo.sum_squares = sum([x.sum_squares for x in values])
-                                for lim in values[0].bucket_limit:
-                                    summary_value.histo.bucket_limit.append(lim)
-                                for bucket in values[0].bucket:
-                                    summary_value.histo.bucket.append(bucket)
-                            else:
-                                print(
-                                    'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
+                    for name, value_ifo in sub_summaries_dict.items():
+                        summary_value = self.summary.value.add()
+                        summary_value.tag = name
+                        if value_ifo['value_field'] == 'histo':
+                            values = value_ifo['values']
+                            summary_value.histo.min = min([x.min for x in values])
+                            summary_value.histo.max = max([x.max for x in values])
+                            summary_value.histo.num = sum([x.num for x in values])
+                            summary_value.histo.sum = sum([x.sum for x in values])
+                            summary_value.histo.sum_squares = sum([x.sum_squares for x in values])
+                            for lim in values[0].bucket_limit:
+                                summary_value.histo.bucket_limit.append(lim)
+                            for bucket in values[0].bucket:
+                                summary_value.histo.bucket.append(bucket)
+                        else:
+                            print(
+                                'Warning: could not aggregate summary of type {}'.format(value_ifo['value_field']))
 
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()
+
                 if self.name == 'agent_0':
                     sess.run(self.increment_global_episode)
                 if not FLAGS.train:
