@@ -120,7 +120,8 @@ def test_hypertune():
                         "summaries_dir": summaries_dir,
                         "frames_dir": frames_dir,
                         "load_from": os.path.join(FLAGS.checkpoint_dir, load_from_model_name),
-                        "envs": test_envs}
+                        "envs": test_envs,
+                        "exp_type": "evaluate_hypertune"}
 
             run(settings)
 

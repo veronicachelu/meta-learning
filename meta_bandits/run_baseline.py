@@ -19,7 +19,8 @@ def run_baseline():
 
     settings = {"model_name": model_name,
                 "game": FLAGS.game,
-                "envs": test_envs}
+                "envs": test_envs,
+                "exp_type": "evaluate_baseline"}
 
     tf.reset_default_graph()
 

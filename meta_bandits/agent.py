@@ -190,7 +190,7 @@ class Agent():
                     mean_regret = np.mean(episode_regret)
                     mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms)
 
-                    if FLAGS.hypertune:
+                    if self.settings["exp_type"] == "validate_hypertune":
                         with open(FLAGS.results_val_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
                                 self.settings["game"],
@@ -198,7 +198,7 @@ class Agent():
                                 self.settings["gamma"],
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
-                    else:
+                    elif self.settings["exp_type"] == "evaluate_hypertune":
                         with open(FLAGS.results_test_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
                                 self.settings["game"],

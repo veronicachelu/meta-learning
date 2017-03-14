@@ -49,7 +49,8 @@ def run_once():
                 "model_name": FLAGS.model_name,
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
-                "frames_dir": frames_dir}
+                "frames_dir": frames_dir,
+                "exp_type": "train_once"}
 
     run(settings)
 

@@ -78,7 +78,8 @@ def evaluate_one_test():
                 "summaries_dir": summaries_dir,
                 "frames_dir": frames_dir,
                 "load_from": os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name),
-                "envs": test_envs}
+                "envs": test_envs,
+                "exp_type": "evaluate_once"}
 
     run(settings)
 

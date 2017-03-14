@@ -120,7 +120,8 @@ def thread_processing(lr, gamma, val_envs, game):
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
                 "frames_dir": frames_dir,
-                "envs": val_envs}
+                "envs": val_envs,
+                "exp_type": "validate_hypertune"}
 
     run(settings)
 
