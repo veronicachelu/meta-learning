@@ -180,9 +180,9 @@ class Agent():
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0, self.settings)
+                        l, v_l, p_l, e_l, g_n, v_n, ms = self.train(episode_buffer, sess, 0.0, self.settings, True)
                     else:
-                        self.train(episode_buffer, sess, 0.0, self.settings)
+                        self.train(episode_buffer, sess, 0.0, self.settings, False)
 
                 if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
                     episode_regret = [max(o - r, 0) for (o, r) in
