@@ -62,40 +62,23 @@ def recreate_subdirectory_structure(settings):
             tf.gfile.MakeDirs(settings["summaries_dir"])
 
 
-def run_one_test():
+def evaluate_one_test():
 
-    if FLAGS.train:
-        recreate_directory_structure()
+    test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
 
-        model_name = "one_test"
-        checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
-        summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
-        frames_dir = os.path.join(FLAGS.frames_dir, model_name)
+    checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name)
+    summaries_dir = os.path.join(FLAGS.summaries_dir, FLAGS.model_name)
+    frames_dir = os.path.join(FLAGS.frames_dir, FLAGS.model_name)
 
-        settings = {"lr": FLAGS.lr,
-                    "gamma": FLAGS.gamma,
-                    "game": FLAGS.game,
-                    "model_name": model_name,
-                    "checkpoint_dir": checkpoint_dir,
-                    "summaries_dir": summaries_dir,
-                    "frames_dir": frames_dir}
-    else:
-        test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
-
-        model_name = "one_test"
-        checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
-        summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
-        frames_dir = os.path.join(FLAGS.frames_dir, model_name)
-
-        settings = {"lr": FLAGS.lr,
-                    "gamma": FLAGS.gamma,
-                    "game": FLAGS.game,
-                    "model_name": model_name,
-                    "checkpoint_dir": checkpoint_dir,
-                    "summaries_dir": summaries_dir,
-                    "frames_dir": frames_dir,
-                    "load_from": os.path.join(FLAGS.checkpoint_dir, model_name),
-                    "envs": test_envs}
+    settings = {"lr": FLAGS.lr,
+                "gamma": FLAGS.gamma,
+                "game": FLAGS.game,
+                "model_name": FLAGS.model_name,
+                "checkpoint_dir": checkpoint_dir,
+                "summaries_dir": summaries_dir,
+                "frames_dir": frames_dir,
+                "load_from": os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name),
+                "envs": test_envs}
 
     run(settings)
 
@@ -125,15 +108,9 @@ def run(settings):
 
     with tf.Session() as sess:
         coord = tf.train.Coordinator()
-        if FLAGS.resume:
-            if FLAGS.hypertune:
-                ckpt = tf.train.get_checkpoint_state(settings["checkpoint_dir"])
-            else:
-                ckpt = tf.train.get_checkpoint_state(settings["load_from"])
-            print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-            saver.restore(sess, ckpt.model_checkpoint_path)
-        else:
-            sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(settings["load_from"])
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        saver.restore(sess, ckpt.model_checkpoint_path)
 
         agent_threads = []
         for agent in agents:
@@ -144,4 +121,4 @@ def run(settings):
         coord.join(agent_threads)
 
 if __name__ == '__main__':
-    run_one_test()
+    evaluate_one_test()
