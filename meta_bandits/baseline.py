@@ -11,7 +11,7 @@ class RandomAgent():
         self.settings = settings
         self.episode_rewards = []
 
-        self.episode_optimal_rewards = []
+        self.episode_regrets = []
         self.episodes_suboptimal_arms = []
 
         self.env = game
@@ -24,7 +24,7 @@ class RandomAgent():
         print("Starting agent " + str(self.thread_id))
         while not coord.should_stop():
 
-            episode_rewards_for_optimal_arm = 0
+            episode_regret = 0
             episode_suboptimal_arm = 0
             episode_reward = [0 for _ in range(FLAGS.nb_actions)]
             episode_step_count = 0
@@ -38,7 +38,7 @@ class RandomAgent():
                 a = random.randint(0, FLAGS.nb_actions - 1)
                 r, d, t = self.env.pull_arm(a)
 
-                episode_rewards_for_optimal_arm += self.env.pull_arm_for_test()
+                episode_regret += self.env.get_timestep_regret(a)
                 optimal_action = self.env.get_optimal_arm()
                 if optimal_action != a:
                     episode_suboptimal_arm += 1
@@ -50,12 +50,10 @@ class RandomAgent():
             self.episode_rewards.append(np.sum(episode_reward))
 
             self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
-            self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
+            self.episode_regrets.append(episode_regret)
 
             if test_episode_count == FLAGS.nb_test_episodes - 1:
-                episode_regret = [max(o - r, 0) for (o, r) in
-                                  zip(self.episode_optimal_rewards, self.episode_rewards)]
-                mean_regret = np.mean(episode_regret)
+                mean_regret = np.mean(self.episode_regrets)
                 mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms)
 
                 print("Mean regret for the model is {}".format(mean_regret))

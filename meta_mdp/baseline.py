@@ -36,7 +36,7 @@ class RandomAgent():
                 total_steps += 1
                 episode_step_count += 1
 
-                self.env.render()
+                # self.env.render()
 
                 if episode_step_count >= 99:
                     d = True
