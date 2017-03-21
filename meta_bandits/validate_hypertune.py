@@ -11,7 +11,7 @@ import multiprocessing
 import concurrent.futures
 import flags
 import os
-
+import sys
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -91,8 +91,12 @@ def run(settings):
         coord = tf.train.Coordinator()
         if FLAGS.resume:
             ckpt = tf.train.get_checkpoint_state(settings["checkpoint_dir"])
-            print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-            saver.restore(sess, ckpt.model_checkpoint_path)
+            # print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+            try:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+            except Exception as e:
+                print(sys.exc_info()[0])
+                print(e)
         else:
             sess.run(tf.global_variables_initializer())
 
@@ -120,13 +124,14 @@ def thread_processing(lr, gamma, val_envs, game):
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
                 "frames_dir": frames_dir,
-                "envs": val_envs}
+                "envs": val_envs,
+                "mode": "val"}
 
     run(settings)
 
 
 def validate_hypertune():
-    recreate_directory_structure()
+    # recreate_directory_structure()
 
     model_instances = os.listdir(FLAGS.checkpoint_dir)
     lrs = [inst.split("__")[1].split("_")[1] for inst in model_instances]

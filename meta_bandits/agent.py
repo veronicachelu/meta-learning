@@ -18,7 +18,7 @@ class Agent():
         self.episode_rewards = []
 
         # if not FLAGS.train:
-        self.episode_optimal_rewards = []
+        self.episode_regrets = []
         self.episodes_suboptimal_arms = []
 
         self.episode_lengths = []
@@ -104,7 +104,7 @@ class Agent():
                 # if not FLAGS.train:
                 #     print("Episode {}".format(test_episode_count))
 
-                episode_rewards_for_optimal_arm = 0
+                episode_regret = 0
                 episode_suboptimal_arm = 0
                 episode_values = []
                 episode_frames = []
@@ -146,7 +146,7 @@ class Agent():
                     r, d, t = self.env.pull_arm(a)
 
                     # if not FLAGS.train:
-                    episode_rewards_for_optimal_arm += self.env.pull_arm_for_test()
+                    episode_regret += self.env.get_timestep_regret(a)
                     optimal_action = self.env.get_optimal_arm()
                     if optimal_action != a:
                         episode_suboptimal_arm += 1
@@ -167,7 +167,7 @@ class Agent():
                 self.episode_rewards.append(np.sum(episode_reward))
 
                 self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
-                self.episode_optimal_rewards.append(episode_rewards_for_optimal_arm)
+                self.episode_regrets.append(episode_regret)
 
                 # if not FLAGS.train:
                 #     print("Episode total reward was: {} vs optimal reward {}".format(np.sum(episode_reward),
@@ -185,12 +185,12 @@ class Agent():
                         self.train(episode_buffer, sess, 0.0, self.settings, False)
 
                 if not FLAGS.train and test_episode_count == FLAGS.nb_test_episodes - 1:
-                    episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards, self.episode_rewards)]
-                    mean_regret = np.mean(episode_regret)
+                    # episode_regret = [max(o - r, 0) for (o, r) in
+                    #                   zip(self.episode_optimal_rewards, self.episode_rewards)]
+                    mean_regret = np.mean(self.episode_regrets)
                     mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms)
 
-                    if FLAGS.hypertune:
+                    if self.settings["mode"] == "val":
                         with open(FLAGS.results_val_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
                                 self.settings["game"],
@@ -199,6 +199,10 @@ class Agent():
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
                     else:
+                        self.images = np.array(episode_frames)
+                        make_gif(self.images,
+                                 self.settings["frames_dir"] + '/image' + str(test_episode_count) + '.gif',
+                                 duration=len(self.images) * 0.1, true_image=True)
                         with open(FLAGS.results_test_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
                                 self.settings["game"],
@@ -206,6 +210,7 @@ class Agent():
                                 self.settings["gamma"],
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
+
                     print("Mean regret for the model is {}".format(mean_regret))
                     print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
@@ -283,6 +288,10 @@ class Agent():
 
                 if self.name == 'agent_0':
                     sess.run(self.increment_global_episode)
-                if not FLAGS.train:
+                # if not FLAGS.train:
+                #     if self.settings["mode"] == "test":
+                #         self.images = np.array(episode_frames)
+                #         make_gif(self.images, self.settings["frames_dir"] + '/image' + str(test_episode_count) + '.gif',
+                #                  duration=len(self.images) * 0.1, true_image=True)
                     test_episode_count += 1
                 episode_count += 1

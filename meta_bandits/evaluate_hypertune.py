@@ -95,9 +95,10 @@ def test_hypertune():
             games.append(game)
             lrs.append(lr)
             gammas.append(gamma)
-            mean_regrets.append(mean_regret)
-            mean_nb_subopt_armss.append(mean_nb_subopt_arms)
-        indices_best_n = np.asarray(mean_regrets).argsort()[-FLAGS.top:][::-1]
+            mean_regrets.append(float(mean_regret))
+            mean_nb_subopt_armss.append(float(mean_nb_subopt_arms))
+        indices_best_n = np.asarray(mean_regrets).argsort()[:FLAGS.top]
+        best_mean_regrests = [mean_regrets[i] for i in indices_best_n]
         best_lrs = [lrs[i] for i in indices_best_n]
         best_gammas = [gammas[i] for i in indices_best_n]
         best_game = games[0]
@@ -120,7 +121,8 @@ def test_hypertune():
                         "summaries_dir": summaries_dir,
                         "frames_dir": frames_dir,
                         "load_from": os.path.join(FLAGS.checkpoint_dir, load_from_model_name),
-                        "envs": test_envs}
+                        "envs": test_envs,
+                        "mode": "test"}
 
             run(settings)
 

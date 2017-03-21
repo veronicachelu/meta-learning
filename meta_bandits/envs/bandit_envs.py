@@ -73,6 +73,15 @@ class TwoArms():
             optimal_reward = 0
         return optimal_reward
 
+    def get_timestep_regret(self, action):
+        optimal_action = np.argmax(self.bandit)
+        optimal_expected_reward_prob = self.bandit[optimal_action]
+        expected_reward_at_t = self.bandit[action]
+
+        timestep_regret = optimal_expected_reward_prob - expected_reward_at_t
+
+        return timestep_regret
+
     def get_optimal_arm(self):
         return np.argmax(self.bandit)
 

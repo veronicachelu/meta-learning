@@ -5,9 +5,9 @@ tf.app.flags.DEFINE_string('game', 'independent',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', 'NoMetaNoGenAdvBetaV_0.05_lr_0.009_gamma_0.8',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_boolean('resume', False,
+tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
-tf.app.flags.DEFINE_boolean('train', True,
+tf.app.flags.DEFINE_boolean('train', False,
                             """Whether to train or test""")
 tf.app.flags.DEFINE_string('checkpoint_dir', './models',
                            """Directory where to save model checkpoints.""")
@@ -31,9 +31,8 @@ tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value"""
 tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
 tf.app.flags.DEFINE_boolean('gen_adv', False,
                             """Whether to use generalized advantage estimation""")
-tf.app.flags.DEFINE_boolean('meta', False,
+tf.app.flags.DEFINE_boolean('meta', True,
                             """Whether to use meta learning""")
-
 tf.app.flags.DEFINE_integer('top', 5, """Take the best n models and test them""")
 tf.app.flags.DEFINE_string('results_val_file', './results_val.txt',
                            """File where to write validation results""")
