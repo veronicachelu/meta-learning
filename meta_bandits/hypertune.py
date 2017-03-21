@@ -119,7 +119,8 @@ def thread_processing(game):
                 "model_name": model_name,
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
-                "frames_dir": frames_dir}
+                "frames_dir": frames_dir,
+                "exp_type": "hypertune"}
 
     run(settings)
 
