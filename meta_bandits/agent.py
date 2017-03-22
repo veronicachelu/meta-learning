@@ -118,6 +118,7 @@ class Agent():
                 if not FLAGS.resume and FLAGS.train:
                     self.env.reset()
                 else:
+                    #print(test_episode_count)
                     self.env.set(self.settings["envs"][test_episode_count])
 
                 rnn_state = self.local_AC.state_init
@@ -198,11 +199,11 @@ class Agent():
                                 self.settings["gamma"],
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
-                    else:
+                    elif self.settings["mode"] == "test":
                         self.images = np.array(episode_frames)
-                        make_gif(self.images,
-                                 self.settings["frames_dir"] + '/image' + str(test_episode_count) + '.gif',
-                                 duration=len(self.images) * 0.1, true_image=True)
+                        #make_gif(self.images,
+                        #         self.settings["frames_dir"] + '/image' + str(test_episode_count) + '.gif',
+                         #        duration=len(self.images) * 0.1, true_image=True)
                         with open(FLAGS.results_test_file, "a+") as f:
                             f.write("Model: game={} lr={} gamma={} mean_regret={} mean_nb_subopt_arms={}\n".format(
                                 self.settings["game"],
@@ -210,9 +211,11 @@ class Agent():
                                 self.settings["gamma"],
                                 mean_regret,
                                 mean_nb_suboptimal_arms))
-
-                    print("Mean regret for the model is {}".format(mean_regret))
-                    print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
+                    else:
+                        with open(FLAGS.results_eval_file, "a+") as f:
+                            f.write("{} ".format(mean_regret))
+                        print("Mean regret for the model is {}".format(mean_regret))
+                        print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
                 # if not FLAGS.train:
@@ -288,7 +291,7 @@ class Agent():
 
                 if self.name == 'agent_0':
                     sess.run(self.increment_global_episode)
-                # if not FLAGS.train:
+                if not FLAGS.train:
                 #     if self.settings["mode"] == "test":
                 #         self.images = np.array(episode_frames)
                 #         make_gif(self.images, self.settings["frames_dir"] + '/image' + str(test_episode_count) + '.gif',

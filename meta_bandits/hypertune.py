@@ -109,6 +109,7 @@ def thread_processing(game):
     gamma = np.random.uniform(0.7, 1.0)
 
     model_name = "d_{}__lr_{}__gamma_{}".format(game, lr, gamma)
+    print(model_name)
     checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
     summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
     frames_dir = os.path.join(FLAGS.frames_dir, model_name)
@@ -120,7 +121,7 @@ def thread_processing(game):
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
                 "frames_dir": frames_dir,
-                "exp_type": "hypertune"}
+                "mode": "hypertune"}
 
     run(settings)
 

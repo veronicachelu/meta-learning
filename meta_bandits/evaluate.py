@@ -64,24 +64,52 @@ def recreate_subdirectory_structure(settings):
 
 def evaluate_one_test():
 
-    test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
+    # test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
+    #
+    # checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name)
+    # summaries_dir = os.path.join(FLAGS.summaries_dir, FLAGS.model_name)
+    # frames_dir = os.path.join(FLAGS.frames_dir, FLAGS.model_name)
+    #
+    # settings = {"lr": FLAGS.lr,
+    #             "gamma": FLAGS.gamma,
+    #             "game": FLAGS.game,
+    #             "model_name": FLAGS.model_name,
+    #             "checkpoint_dir": checkpoint_dir,
+    #             "summaries_dir": summaries_dir,
+    #             "frames_dir": frames_dir,
+    #             "load_from": os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name),
+    #             "envs": test_envs,
+    #             "mode": "evaluate_once"}
+    #
+    # run(settings)
+    for _ in range(5):
+        model_name = "best_{}__lr_{}__gamma_{}".format(FLAGS.game, FLAGS.lr, FLAGS.gamma)
+        load_from_model_name = "d_{}__lr_{}__gamma_{}".format(FLAGS.best_model_game, FLAGS.lr, FLAGS.gamma)
+        print(load_from_model_name)
+        checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, model_name)
+        summaries_dir = os.path.join(FLAGS.summaries_dir, model_name)
+        frames_dir = os.path.join(FLAGS.frames_dir, model_name)
+        test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
 
-    checkpoint_dir = os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name)
-    summaries_dir = os.path.join(FLAGS.summaries_dir, FLAGS.model_name)
-    frames_dir = os.path.join(FLAGS.frames_dir, FLAGS.model_name)
+        settings = {"lr": FLAGS.lr,
+                    "gamma": FLAGS.gamma,
+                    "game": FLAGS.game,
+                    "model_name": model_name,
+                    "checkpoint_dir": checkpoint_dir,
+                    "summaries_dir": summaries_dir,
+                    "frames_dir": frames_dir,
+                    "load_from": os.path.join(FLAGS.checkpoint_dir, load_from_model_name),
+                    "envs": test_envs,
+                    "mode": "eval"}
 
-    settings = {"lr": FLAGS.lr,
-                "gamma": FLAGS.gamma,
-                "game": FLAGS.game,
-                "model_name": FLAGS.model_name,
-                "checkpoint_dir": checkpoint_dir,
-                "summaries_dir": summaries_dir,
-                "frames_dir": frames_dir,
-                "load_from": os.path.join(FLAGS.checkpoint_dir, FLAGS.model_name),
-                "envs": test_envs,
-                "exp_type": "evaluate_once"}
+        run(settings)
 
-    run(settings)
+    with open(FLAGS.results_eval_file, "r") as f:
+        line = f.readline()
+    mean_regrets = line.rstrip('\n').split(' ')
+    mean_regrets = [float(rg) for rg in mean_regrets]
+    mean_rg_avg = np.mean(mean_regrets)
+    print("Avg regret for the model is {}".format(mean_rg_avg))
 
 
 def run(settings):
