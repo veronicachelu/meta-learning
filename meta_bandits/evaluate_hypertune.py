@@ -59,12 +59,9 @@ def run(settings):
 
     with tf.Session() as sess:
         coord = tf.train.Coordinator()
-        if FLAGS.resume:
-            ckpt = tf.train.get_checkpoint_state(settings["load_from"])
-            print("Loading Model from {}".format(ckpt.model_checkpoint_path))
-            saver.restore(sess, ckpt.model_checkpoint_path)
-        else:
-            sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(settings["load_from"])
+        print("Loading Model from {}".format(ckpt.model_checkpoint_path))
+        saver.restore(sess, ckpt.model_checkpoint_path)
 
         agent_threads = []
         for agent in agents:
@@ -101,9 +98,9 @@ def test_hypertune():
         best_mean_regrests = [mean_regrets[i] for i in indices_best_n]
         best_lrs = [lrs[i] for i in indices_best_n]
         best_gammas = [gammas[i] for i in indices_best_n]
-        best_game = games[0]
+        best_game = FLAGS.best_model_game
 
-        test_envs = TwoArms.get_envs(best_game, FLAGS.nb_test_episodes)
+        test_envs = TwoArms.get_envs(FLAGS.game, FLAGS.nb_test_episodes)
 
         for i in range(len(indices_best_n)):
             model_name = "best_{}__lr_{}__gamma_{}".format(best_game, best_lrs[i], best_gammas[i])
@@ -115,7 +112,7 @@ def test_hypertune():
 
             settings = {"lr": best_lrs[i],
                         "gamma": best_gammas[i],
-                        "game": best_game,
+                        "game": FLAGS.game,
                         "model_name": model_name,
                         "checkpoint_dir": checkpoint_dir,
                         "summaries_dir": summaries_dir,
