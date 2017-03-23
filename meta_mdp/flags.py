@@ -3,7 +3,7 @@ import tensorflow as tf
 # Basic model parameters.
 tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v0',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_string('model_name', "NoMetaGenAdvBetaV_0.25_BetaE_0.05_LargeGrid", """Name of the model""")
+tf.app.flags.DEFINE_string('model_name', "MetaGenAdvBeta_steps_200_V_0.25_BetaE_0.05_LargeGrid", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', False,
@@ -24,7 +24,7 @@ tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
 tf.app.flags.DEFINE_boolean('monitor', False,
                             """Monitor test with gym monitor""")
-tf.app.flags.DEFINE_boolean('meta', False,
+tf.app.flags.DEFINE_boolean('meta', True,
                             """Whether to use meta learning framwork or not""")
 tf.app.flags.DEFINE_integer('summary_interval', 5000, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 5000, """Number of episodes of interval between checkpoint saves""")

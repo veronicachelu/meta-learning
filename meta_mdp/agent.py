@@ -112,7 +112,7 @@ class Agent():
                     a = 0
                 t = 0
 
-                s = self.env.reset()
+                s, _, _, _ = self.env.reset()
                 rnn_state = self.local_AC.state_init
 
                 while not d:
@@ -148,7 +148,7 @@ class Agent():
 
                     s = s1
 
-                    if t > 100:
+                    if t > 200:
                         d = True
 
                 self.episode_rewards.append(episode_reward)
