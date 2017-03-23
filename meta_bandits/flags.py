@@ -1,9 +1,8 @@
 import tensorflow as tf
 
 # Basic model parameters.
+<<<<<<< Updated upstream
 tf.app.flags.DEFINE_string('game', 'uniform',
-                           """Bandit experiment type to be run""")
-
 tf.app.flags.DEFINE_string('best_model_game', 'independent', """Bandit experiment type to be loaded""")
 tf.app.flags.DEFINE_string('model_name', 'd_independent__lr_0.0014453118193559077__gamma_0.7584822082899334',
                            """Bandit experiment type to be run""")
@@ -35,7 +34,7 @@ tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimation""")
 tf.app.flags.DEFINE_boolean('meta', True,
                             """Whether to use meta learning""")
-tf.app.flags.DEFINE_integer('top', 5, """Take the best n models and test them""")
+tf.app.flags.DEFINE_integer('top', 1, """Take the best n models and test them""")
 tf.app.flags.DEFINE_string('results_val_file', './results_val.txt',
                            """File where to write validation results""")
 tf.app.flags.DEFINE_string('results_test_file', './results_test.txt',
