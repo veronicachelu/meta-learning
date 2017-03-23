@@ -24,28 +24,28 @@ class IntelligentAgent():
         # action = 0 up
         new_hero_pos = info["hero"]
         if new_hero_pos[0] >= 1:
-            new_hero_pos[0] -= 1
+            new_hero_pos = (new_hero_pos[0] - 1, new_hero_pos[1])
             new_cost = np.abs(new_hero_pos[0] - info["goal"][0]) + np.abs(new_hero_pos[1] - info["goal"][1])
             costs_actions.append(new_cost)
 
         # action = 1 down
         new_hero_pos = info["hero"]
         if new_hero_pos[0] <= info["grid"][0]:
-            new_hero_pos[0] += 1
+            new_hero_pos = (new_hero_pos[0] + 1, new_hero_pos[1])
             new_cost = np.abs(new_hero_pos[0] - info["goal"][0]) + np.abs(new_hero_pos[1] - info["goal"][1])
             costs_actions.append(new_cost)
 
         # action = 2 left
         new_hero_pos = info["hero"]
         if new_hero_pos[1] >= 1:
-            new_hero_pos[1] -= 1
+            new_hero_pos = (new_hero_pos[0], new_hero_pos[1] - 1)
             new_cost = np.abs(new_hero_pos[0] - info["goal"][0]) + np.abs(new_hero_pos[1] - info["goal"][1])
             costs_actions.append(new_cost)
 
         # action = 3 right
         new_hero_pos = info["hero"]
         if new_hero_pos[1] <= info["grid"][1]:
-            new_hero_pos[1] += 1
+            new_hero_pos = (new_hero_pos[0], new_hero_pos[1] + 1)
             new_cost = np.abs(new_hero_pos[0] - info["goal"][0]) + np.abs(new_hero_pos[1] - info["goal"][1])
             costs_actions.append(new_cost)
 
