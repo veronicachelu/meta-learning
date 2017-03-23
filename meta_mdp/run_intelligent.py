@@ -7,7 +7,7 @@ import gym
 from gym import wrappers
 import gym_fast_envs
 from agent import Agent
-from random_agent import RandomAgent
+from intelligent_agent import IntelligentAgent
 from network import ACNetwork
 import flags
 import multiprocessing
@@ -24,7 +24,7 @@ def run():
             if FLAGS.monitor:
                 gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i), force=True)
 
-            agent = RandomAgent(gym_env)
+            agent = IntelligentAgent(gym_env)
 
             agent.play()
 

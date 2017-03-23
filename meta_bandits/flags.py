@@ -1,8 +1,7 @@
 import tensorflow as tf
 
 # Basic model parameters.
-<<<<<<< Updated upstream
-tf.app.flags.DEFINE_string('game', 'uniform',
+tf.app.flags.DEFINE_string('game', 'uniform', """Bandit experiment type to be loaded""")
 tf.app.flags.DEFINE_string('best_model_game', 'independent', """Bandit experiment type to be loaded""")
 tf.app.flags.DEFINE_string('model_name', 'd_independent__lr_0.0014453118193559077__gamma_0.7584822082899334',
                            """Bandit experiment type to be run""")
