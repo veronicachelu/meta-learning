@@ -1,9 +1,9 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v0',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_string('model_name', "MetaGenAdvBeta_Conv_V_0.25_BetaE_0.05_LargeGrid", """Name of the model""")
+tf.app.flags.DEFINE_string('model_name', "IntelligentAgentBetaV_0.25_BetaE_0.05", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', True,
