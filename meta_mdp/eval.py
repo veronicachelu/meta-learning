@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 import time
 
-from network import ACNetwork
+from network import ACNetwork, ConvNetwork
 from utils import update_target_graph
 import gym
 import flags
@@ -17,7 +17,10 @@ FLAGS = tf.app.flags.FLAGS
 class PolicyMonitor(object):
     def __init__(self, game, optimizer, global_step):
         self.name = "policy_eval"
-        self.local_AC = ACNetwork(self.name, optimizer, global_step)
+        if FLAGS.use_conv:
+            self.local_AC = ConvNetwork(self.name, optimizer, global_step)
+        else:
+            self.local_AC = ACNetwork(self.name, optimizer, global_step)
         self.update_local_ops = update_target_graph('global', self.name)
         self.summary_writer = tf.summary.FileWriter(FLAGS.summaries_dir + "/policy_eval")
         self.env = game
@@ -39,7 +42,7 @@ class PolicyMonitor(object):
 
             # Run an episode
             d = False
-            s = self.env.reset()
+            s, _, _, _ = self.env.reset()
             r = 0
             a = 0
             t = 0

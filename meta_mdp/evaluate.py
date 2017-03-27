@@ -7,7 +7,7 @@ import gym
 from gym import wrappers
 import gym_fast_envs
 from agent import Agent
-from network import ACNetwork
+from network import ACNetwork, ConvNetwork
 import flags
 import multiprocessing
 from eval import PolicyMonitor
@@ -32,7 +32,10 @@ def run():
         with tf.device("/cpu:0"):
             global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
             optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-            global_network = ACNetwork('global', None)
+            if FLAGS.use_conv:
+                global_network = ConvNetwork('global', None)
+            else:
+                global_network = ACNetwork('global', None)
             saver = tf.train.Saver(max_to_keep=5)
 
             if FLAGS.resume:

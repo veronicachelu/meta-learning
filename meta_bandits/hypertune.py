@@ -104,6 +104,7 @@ def run(settings):
             agent_threads.append(thread)
         coord.join(agent_threads)
 
+
 def thread_processing(game):
     lr = 10 ** np.random.uniform(np.log10(10 ** (-2)), np.log10((10 ** (-4))))
     gamma = np.random.uniform(0.7, 1.0)
@@ -125,15 +126,23 @@ def thread_processing(game):
 
     run(settings)
 
+
 def hypertune(game, nb_hyper_runs):
     recreate_directory_structure()
 
-    if not FLAGS.resume and FLAGS.train:
+    if not FLAGS.resume:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
+            for i in range(nb_hyper_runs):
+                _ = executor.submit(thread_processing, game)
+    else:
+        model_instances = os.listdir(FLAGS.checkpoint_dir)
+        nb_hyper_runs -= len(model_instances)
         with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
             for i in range(nb_hyper_runs):
                 _ = executor.submit(thread_processing, game)
 
+
 if __name__ == '__main__':
-    game = 'independent'
+    game = FLAGS.game
     nb_hyper_runs = 100
     hypertune(game, nb_hyper_runs)

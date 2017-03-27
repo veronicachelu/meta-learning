@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from network import ACNetwork
+from network import ACNetwork, ConvNetwork
 from utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
 import os
 FLAGS = tf.app.flags.FLAGS
@@ -25,7 +25,11 @@ class Agent():
         self.summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.summaries_dir, FLAGS.model_name) + "/worker_" + str(self.thread_id))
         self.summary = tf.Summary()
 
-        self.local_AC = ACNetwork(self.name, optimizer, self.global_episode)
+        if FLAGS.use_conv:
+            self.local_AC = ConvNetwork(self.name, optimizer, self.global_episode)
+        else:
+            self.local_AC = ACNetwork(self.name, optimizer, self.global_episode)
+
         self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
@@ -148,7 +152,7 @@ class Agent():
 
                     s = s1
 
-                    if t > 200:
+                    if t > 100:
                         d = True
 
                 self.episode_rewards.append(episode_reward)
