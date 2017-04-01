@@ -19,7 +19,7 @@ class IntelligentAgent():
 
     def get_action_towards_goal(self, info):
         # 0 - up, 1 - down, 2 - left, 3 - right, 4 - 90 counter-clockwise, 5 - 90 clockwise
-        print(info)
+        # print(info)
         cost = np.abs(info["hero"][0] - info["goal"][0]) + np.abs(info["hero"][1] - info["goal"][1])
         eps = 1e-7
         costs_actions = []
@@ -77,7 +77,7 @@ class IntelligentAgent():
 
                 # self.env.render()
 
-                if episode_step_count >= 99:
+                if episode_step_count >= 199:
                      d = True
 
             self.episode_rewards.append(episode_reward)

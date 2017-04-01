@@ -59,7 +59,7 @@ class Agent():
         if FLAGS.meta:
             feed_dict = {self.local_AC.target_v: discounted_rewards,
                          self.local_AC.inputs: np.stack(observations, axis=0),
-                         self.local_AC.prev_rewards: np.vstack(prev_rewards),
+                         self.local_AC.prev_rewards: prev_rewards,
                          self.local_AC.prev_actions: prev_actions,
                          self.local_AC.actions: actions,
                          self.local_AC.timestep: np.vstack(timesteps),
@@ -124,7 +124,7 @@ class Agent():
                     if FLAGS.meta:
                         feed_dict = {
                             self.local_AC.inputs: [s],
-                            self.local_AC.prev_rewards: [[r]],
+                            self.local_AC.prev_rewards: [r],
                             self.local_AC.timestep: [[t]],
                             self.local_AC.prev_actions: [a],
                             self.local_AC.state_in[0]: rnn_state[0],
@@ -152,6 +152,7 @@ class Agent():
 
                     s = s1
 
+                    # print(t)
                     if t > 100:
                         d = True
 

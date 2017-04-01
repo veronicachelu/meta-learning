@@ -22,7 +22,7 @@ def run():
         with tf.device("/cpu:0"):
             gym_env = gym.make(FLAGS.game)
             if FLAGS.monitor:
-                gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/intelligent', force=True)
+                gym_env = gym.wrappers.Monitor(gym_env, FLAGS.test_experiments_dir + '/intelligent', force=True)
 
             agent = IntelligentAgent(gym_env)
 
