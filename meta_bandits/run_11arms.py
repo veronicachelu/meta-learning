@@ -47,7 +47,6 @@ def run_once():
                 "gamma": FLAGS.gamma,
                 "game": FLAGS.game,
                 "model_name": FLAGS.model_name,
-                "load_from": checkpoint_dir,
                 "checkpoint_dir": checkpoint_dir,
                 "summaries_dir": summaries_dir,
                 "frames_dir": frames_dir,

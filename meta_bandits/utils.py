@@ -68,7 +68,7 @@ def set_image_bandit_11_arms(values, target_arm, selection, trial):
     bandit_image = Image.open('./resources/11arm.png')
     draw = ImageDraw.Draw(bandit_image)
     font = ImageFont.truetype("./resources/FreeSans.ttf", 24)
-    print("target arm is {}. Selection is {}".format(target_arm, selection))
+    # print("target arm is {}. Selection is {}".format(target_arm, selection))
     delta = 90
     draw.text((40 + 1 * delta, 10), "T", (0, 0, 0), font=font)
     draw.text((40 + 2 * delta, 10), "I {}".format(target_arm), (0, 0, 0), font=font)

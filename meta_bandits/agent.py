@@ -115,7 +115,7 @@ class Agent():
                     r = 0
                 a = 0
                 t = 0
-                if not FLAGS.resume and FLAGS.train:
+                if FLAGS.train:
                     self.env.reset()
                 else:
                     #print(test_episode_count)
@@ -237,10 +237,10 @@ class Agent():
                     mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
                     mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
                     mean_value = np.mean(self.episode_mean_values[-FLAGS.summary_interval:])
-                    episode_regret = [max(o - r, 0) for (o, r) in
-                                      zip(self.episode_optimal_rewards[-FLAGS.summary_interval:],
-                                          self.episode_rewards[-50:])]
-                    mean_regret = np.mean(episode_regret)
+                    # episode_regret = [max(o - r, 0) for (o, r) in
+                    #                   zip(self.episode_optimal_rewards[-FLAGS.summary_interval:],
+                    #                       self.episode_rewards[-50:])]
+                    mean_regret = np.mean(self.episode_regrets[-FLAGS.summary_interval:])
                     mean_nb_suboptimal_arms = np.mean(self.episodes_suboptimal_arms[-FLAGS.summary_interval:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))

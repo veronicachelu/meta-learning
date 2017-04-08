@@ -120,6 +120,24 @@ class ElevenArms():
     def get_optimal_arm(self):
         return self.bandit_target_arm
 
+    def get_timestep_regret(self, action):
+        # optimal_action = np.argmax(self.bandit)
+        # optimal_expected_reward_prob = self.bandit[optimal_action]
+        # expected_reward_at_t = self.bandit[action]
+
+        if action == 10:
+            # pull informative arm
+            reward = self.bandit_target_arm / 10
+        elif action == self.bandit_target_arm:
+            reward = 5
+        else:
+            reward = 1
+
+        timestep_regret = 5 - reward
+
+        return timestep_regret
+
+
 # env = dependent_bandit("easy")
 # print("The probabilities for the arm are: {}".format(env.bandit))
 # print("pulling arm 0")
