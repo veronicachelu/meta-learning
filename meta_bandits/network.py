@@ -13,14 +13,20 @@ class ACNetwork():
     def __init__(self, scope, trainer, global_step=None):
         with tf.variable_scope(scope):
             if FLAGS.meta:
-                self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
+                self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards")
+                # one_hot_indices = np.arange(0,1,0.1).tolist()[1:] + [1, 5]
+                # one_hot_rewards = tf.one_hot(indices=one_hot_indices, depth=11, on_value=1, off_value=0,
+                #                                       axis=-1)
+                # self.prev_rewards_onehot = self.prev_rewards[]
+                self.prev_rewards_onehot = tf.one_hot(self.prev_rewards, 12, dtype=tf.float32,
+                                                      name="Prev_Rewards_OneHot")
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
 
             if FLAGS.meta:
-                hidden = tf.concat([self.prev_rewards, self.prev_actions_onehot, self.timestep], 1,
+                hidden = tf.concat([self.prev_rewards_onehot, self.prev_actions_onehot, self.timestep], 1,
                                name="Concatenated_input")
             else:
                 hidden = tf.concat([self.prev_actions_onehot, self.timestep], 1,

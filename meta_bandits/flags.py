@@ -5,7 +5,7 @@ tf.app.flags.DEFINE_string('game', '11arms', """Bandit experiment type to be loa
 tf.app.flags.DEFINE_string('best_model_game', '11arms', """Bandit experiment type to be loaded""")
 tf.app.flags.DEFINE_string('model_name', '11arms4',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
