@@ -11,6 +11,7 @@ FLAGS = tf.app.flags.FLAGS
 class FUNNetwork():
     def __init__(self, scope, trainer, global_step=None):
         with tf.variable_scope(scope):
+            self.prob_of_random_goal = tf.Variable(FLAGS.initial_random_goal_prob, trainable=False, name="prob_of_random_goal", dtype=tf.float32)
             self.inputs = tf.placeholder(shape=[None, FLAGS.game_size, FLAGS.game_size, FLAGS.game_channels],
                                          dtype=tf.float32, name="Inputs")
 
@@ -66,6 +67,17 @@ class FUNNetwork():
 
             self.goals = tf.nn.l2_normalize(m_rnn_out, 1)
 
+            def randomize_goals(t):
+                t = tf.cast(t, tf.int32)
+                to_update = tf.cond(tf.less(self.prob_of_random_goal, tf.constant(FLAGS.final_random_goal_prob, dtype=tf.float32)),
+                                 lambda: tf.random_normal([48,]), lambda: self.goals[t,:])
+
+                return to_update
+
+            self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])), name="randomize_goals")
+
+            decrease_prob_of_random_goal = self.prob_of_random_goal.assign_sub((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps)
+
             m_fc_value_w = tf.get_variable("M_FC_Value_W", shape=[48, 1],
                                            initializer=normalized_columns_initializer(1.0))
             self.m_value = tf.matmul(m_rnn_out, m_fc_value_w, name="M_Value")
@@ -76,9 +88,10 @@ class FUNNetwork():
                 t = tf.cast(t, tf.int32)
                 indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), t + 1)
 
-                return tf.reduce_sum(tf.gather(tf.stop_gradient(self.goals), indices), axis=0)
+                return tf.reduce_sum(tf.gather(tf.stop_gradient(self.randomized_goals), indices), axis=0)
 
-            self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="sum_prev_goals")
+            with tf.control_dependencies([decrease_prob_of_random_goal]):
+                self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="sum_prev_goals")
 
             ############################################################################################################
 
