@@ -59,7 +59,7 @@ class FUNNetwork():
             m_lstm_outputs, m_lstm_state = self.fast_dlstm(m_rnn_in, m_state_in, m_lstm_cell, FLAGS.manager_horizon, 48)
 
             m_lstm_c, m_lstm_h = m_lstm_state
-            self.m_state_out = (m_lstm_c[:1, :], m_lstm_h[:1, :])
+            self.m_state_out = (m_lstm_c[-1, :1, :], m_lstm_h[-1, :1, :])
             m_rnn_out = tf.reshape(m_lstm_outputs, [-1, 48], name="MRNN_out")
 
             summary_mrnn_act = tf.contrib.layers.summarize_activation(m_rnn_out)
@@ -73,11 +73,12 @@ class FUNNetwork():
             summary_m_value_act = tf.contrib.layers.summarize_activation(self.m_value)
 
             def gather_horiz(t):
+                t = tf.cast(t, tf.int32)
                 indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), t + 1)
 
                 return tf.reduce_sum(tf.gather(tf.stop_gradient(self.goals), indices), axis=0)
 
-            self.sum_prev_goals = tf.cast(tf.map_fn(lambda t: gather_horiz(t), tf.range(0, step_size[0])), dtype=tf.float32)
+            self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="sum_prev_goals")
 
             ############################################################################################################
 
@@ -123,19 +124,20 @@ class FUNNetwork():
 
 
             if scope != 'global':
-                self.m_advantages = tf.placeholder(shape=[None], dtype=tf.float32)
                 self.w_extrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
                 self.m_extrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
 
                 def gather_state_at_horiz(t):
+                    t = tf.cast(t, tf.int32)
                     f_Mspace_c = tf.gather(self.f_Mspace, tf.minimum(t + tf.constant(FLAGS.manager_horizon, dtype=tf.int32),
-                                                                      step_size[0]))
+                                                                      step_size[0] - 1))
                     return f_Mspace_c
 
-                self.f_Mspace_c = tf.cast(tf.map_fn(lambda t: gather_state_at_horiz(t), tf.range(0, step_size[0])), dtype=tf.float32)
+                self.f_Mspace_c = tf.cast(tf.map_fn(lambda t: gather_state_at_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="state_at_horiz"), dtype=tf.float32)
                 self.state_diff = self.f_Mspace_c - self.f_Mspace
                 self.cos_sim_state_diff = tf.losses.cosine_distance(tf.stop_gradient(self.state_diff), self.goals, dim=1)
 
+                self.m_advantages = self.m_extrinsic_return - tf.stop_gradient(tf.reshape(self.m_value, [-1]))
                 self.goals_loss = tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
                 self.m_value_loss = FLAGS.m_beta_v * tf.reduce_sum(tf.square(self.m_extrinsic_return - tf.reshape(self.m_value, [-1])))
 
@@ -150,16 +152,18 @@ class FUNNetwork():
 
 
                 def gather_intrinsic_rewards(t):
+                    t = tf.cast(t, tf.int32)
                     indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t - 1, 0))
+                    original_state = tf.map_fn(lambda i: self.f_Mspace[t, :], tf.to_float(indices))
                     goals = tf.gather(self.goals, indices)
-                    state_diff = self.f_Mspace - tf.gather(self.f_Mspace, indices)
+                    state_diff = original_state - tf.gather(self.f_Mspace, indices)
                     intrinsic_reward = (1 / FLAGS.manager_horizon) * tf.reduce_sum(
                         tf.losses.cosine_distance(state_diff, goals, dim=1))
 
                     return intrinsic_reward
 
-                intr_rewards = tf.cast(tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.range(0, step_size[0])), dtype=tf.float32)
-                discounted_intrinsic_rewards = tf.scan(lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, intr_rewards)
+                intr_rewards = tf.cast(tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.to_float(tf.range(0, step_size[0])), name="intrinsic_rewards"), dtype=tf.float32)
+                discounted_intrinsic_rewards = tf.scan(lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, intr_rewards, name="discounted_intr_rewards")
 
                 self.intrinsic_return = FLAGS.alpha * discounted_intrinsic_rewards[-1]
                 self.total_return = self.w_extrinsic_return + self.intrinsic_return
@@ -235,9 +239,9 @@ class FUNNetwork():
         rnn_outputs, final_states, mod_idxs = tf.scan(dlstm_scan_fn,
                                                       tf.transpose(s_t, [1, 0, 2]),
                                                       initializer=(
-                                                      state_in.c, state_in, tf.constant(0)))
+                                                      state_in.c, state_in, tf.constant(0)), name="dlstm")
 
-        # state_out = [final_states[0][-1, 0, :], final_states[1][-1, 0, :]]
+        # state_out = [final_states[0][-1, :1, :], final_states[1][-1, :1, :]]
         # cell_states = final_states[0][:, 0, :]
         # out_states = final_states[1][:, 0, :]
         return rnn_outputs, final_states

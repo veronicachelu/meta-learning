@@ -40,9 +40,9 @@ class Agent():
         w_values = rollout[:, 5]
         m_values = rollout[:, 6]
 
-        if FLAGS.meta:
-            prev_rewards = [0] + rewards[:-1].tolist()
-            prev_actions = [0] + actions[:-1].tolist()
+        # if FLAGS.meta:
+        #     prev_rewards = [0] + rewards[:-1].tolist()
+        #     prev_actions = [0] + actions[:-1].tolist()
 
         # The advantage function uses "Generalized Advantage Estimation"
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
@@ -51,16 +51,19 @@ class Agent():
         # w_value_plus = np.asarray(w_values.tolist() + [bootstrap_value])
         # m_value_plus = np.asarray(m_values.tolist() + [bootstrap_value])
 
-        w_rnn_state = self.local_AC.state_init
-        m_rnn_state = self.local_AC.state_init
+        w_rnn_state = self.local_AC.w_state_init
+        m_rnn_state = self.local_AC.m_state_init
         feed_dict = {self.local_AC.w_extrinsic_return: w_discounted_rewards,
                      self.local_AC.m_extrinsic_return: m_discounted_rewards,
                      self.local_AC.inputs: np.stack(observations, axis=0),
                      # self.local_AC.prev_rewards: prev_rewards,
                      # self.local_AC.prev_actions: prev_actions,
                      self.local_AC.actions: actions,
-                     self.local_AC.state_in[0]: w_rnn_state[0],
-                     self.local_AC.state_in[1]: m_rnn_state[1]}
+                     self.local_AC.w_state_in[0]: w_rnn_state[0],
+                     self.local_AC.w_state_in[1]: w_rnn_state[1],
+                     self.local_AC.m_state_in[0]: m_rnn_state[0],
+                     self.local_AC.m_state_in[1]: m_rnn_state[1]
+                     }
 
         if summaries:
             l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
@@ -144,7 +147,7 @@ class Agent():
                     s = s1
 
                     # print(t)
-                    if t > FLAGS.K:
+                    if t >= FLAGS.K:
                         d = True
 
                 self.episode_rewards.append(episode_reward)
