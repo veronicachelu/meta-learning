@@ -85,3 +85,6 @@ that don't contain any checkpoints, you can run the following command which only
 
 * Results are shown in this table, including with the best values for learning rates and gamma values:
 
+## Acknowledgements
+- ```Learning to reinforcement learn - Jane X Wang, Zeb Kurth-Nelson, Dhruva Tirumala, Hubert Soyer, Joel Z Leibo, Remi Munos, Charles Blundell, Dharshan Kumaran, Matt Botvinick```
+- [meta-rl](https://github.com/awjuliani/Meta-RL)

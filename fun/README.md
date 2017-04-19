@@ -1,4 +1,4 @@
-# Meta-Reinforcement Learning
+# Meta-Reinforcement Learning with feudal networks for hierarchical reinforcement learning
 
 ## System requirements
 
@@ -40,14 +40,6 @@
 
         $ python evaluate.py
         
-*   To run a random agent baseline run:
-
-        $ python run_baseline.py
-        
-*   To run an intelligent agent which knows the goal location and takes the minimum manhatan distance to the goal, run:
-        
-        $ python run_intelligent.py
-    
 ## Tensorboard visualizations
 
 * From ```summaries_dir``` run:
@@ -62,6 +54,8 @@
         TODO
 
 ## Acknowledgements
+
+- ```FeUdal Networks for Hierarchical Reinforcement Learning - Alexander Sasha Vezhnevets, Simon Osindero, Tom Schaul, Nicolas Heess, Max Jaderberg, David Silver, Koray Kavukcuoglu```
 - ```Learning to reinforcement learn - Jane X Wang, Zeb Kurth-Nelson, Dhruva Tirumala, Hubert Soyer, Joel Z Leibo, Remi Munos, Charles Blundell, Dharshan Kumaran, Matt Botvinick```
 - [meta-rl](https://github.com/awjuliani/Meta-RL)
 
