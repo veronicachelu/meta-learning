@@ -44,7 +44,7 @@
 
         $ python run_baseline.py
         
-*   To run an intelligent agent which knows the goal location and takes the minimum manhatan distance to the goal, run:
+*   To run an intelligent agent which knows the goal location and takes the minimum manhattan distance to the goal, run:
         
         $ python run_intelligent.py
     
