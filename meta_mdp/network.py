@@ -30,13 +30,18 @@ class ACNetwork():
 
             if FLAGS.meta:
                 self.timestep = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="timestep")
-                self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
+                # self.prev_rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name="Prev_Rewards")
+                self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards")
+                self.prev_rewards_onehot = tf.one_hot(self.prev_rewards, 2, dtype=tf.float32,
+                                                      name="Prev_Rewards_OneHot")
+
                 self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
                 self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                       name="Prev_Actions_OneHot")
 
-                hidden = tf.concat([self.conv, self.prev_rewards, self.prev_actions_onehot,
-                                       self.timestep], 1, name="Concatenated_input")
+                # hidden = tf.concat([self.conv, self.prev_rewards, self.prev_actions_onehot,
+                #                        self.timestep], 1, name="Concatenated_input")
+                hidden = tf.concat([self.conv, self.prev_rewards_onehot, self.prev_actions_onehot], 1, name="Concatenated_input")
             else:
                 hidden = self.conv
 

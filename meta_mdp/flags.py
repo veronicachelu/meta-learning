@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v0',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_string('model_name', "MetaGenAdvBeta_Conv_OneHotReward_V_0.25_BetaE_0.05_LargeGrid", """Name of the model""")
-tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
+tf.app.flags.DEFINE_string('model_name', "MetaGenAdvBeta_OneHotReward_V_0.25_BetaE_0.05", """Name of the model""")
+tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', True,
                             """Resume training from latest checkpoint""")
@@ -32,7 +32,7 @@ tf.app.flags.DEFINE_integer('nb_actions', 4, """Number of actions to take""")
 tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_float('gamma', 0.95, """Gamma value""")
 tf.app.flags.DEFINE_float('lr', 1e-3, """Learning rate""")
-tf.app.flags.DEFINE_float('beta_v', 0.25, """Coefficient of value function loss""")
+tf.app.flags.DEFINE_float('beta_v', 0.5, """Coefficient of value function loss""")
 tf.app.flags.DEFINE_float('beta_e', 0.05, """Coefficient of entropy loss""")
 tf.app.flags.DEFINE_integer('max_nb_episodes_train', 90000, """Max number of episodes of training time""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
@@ -41,5 +41,5 @@ tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimation""")
 tf.app.flags.DEFINE_boolean('fw', False,
                             """Whether to use fast weights""")
-tf.app.flags.DEFINE_boolean('use_conv', True, """use_conv""")
+tf.app.flags.DEFINE_boolean('use_conv', False, """use_conv""")
 tf.app.flags.DEFINE_boolean('one_hot_reward', True, """one_hot_reward""")

@@ -55,7 +55,7 @@ class PolicyMonitor(object):
                 if FLAGS.meta:
                     feed_dict = {
                         self.local_AC.inputs: [s],
-                        self.local_AC.prev_rewards: [[r]],
+                        self.local_AC.prev_rewards: [r],
                         self.local_AC.timestep: [[t]],
                         self.local_AC.prev_actions: [a],
                         self.local_AC.state_in[0]: rnn_state[0],

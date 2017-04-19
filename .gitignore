@@ -141,6 +141,6 @@ resources/11arm.psd
 async/experimens/
 async/frames/
 async/models/
-meta_bandits/De/frames/
-meta_bandits/frames/
-meta_bandits/models/
+meta_bandits_11_arms/De/frames/
+meta_bandits_11_arms/frames/
+meta_bandits_11_arms/models/

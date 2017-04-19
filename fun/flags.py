@@ -41,6 +41,6 @@ tf.app.flags.DEFINE_integer('max_nb_episodes_train', 4000000000, """Max number o
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
 tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
 tf.app.flags.DEFINE_integer('manager_horizon', 8, """manager_horizon = r = c""")
-tf.app.flags.DEFINE_integer('K', 200, """manager_horiz = r = c""")
+tf.app.flags.DEFINE_integer('K', 400, """manager_horiz = r = c""")
 tf.app.flags.DEFINE_integer('goal_embedding_size', 8, """goal_embedding_size""")
 tf.app.flags.DEFINE_integer('alpha', 0.5, """manager_horiz = r = c""")

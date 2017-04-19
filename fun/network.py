@@ -76,7 +76,7 @@ class FUNNetwork():
 
             self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])), name="randomize_goals")
 
-            decrease_prob_of_random_goal = self.prob_of_random_goal.assign_sub((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps)
+            #decrease_prob_of_random_goal = self.prob_of_random_goal.assign_sub((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps)
 
             m_fc_value_w = tf.get_variable("M_FC_Value_W", shape=[48, 1],
                                            initializer=normalized_columns_initializer(1.0))
@@ -90,8 +90,8 @@ class FUNNetwork():
 
                 return tf.reduce_sum(tf.gather(tf.stop_gradient(self.randomized_goals), indices), axis=0)
 
-            with tf.control_dependencies([decrease_prob_of_random_goal]):
-                self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="sum_prev_goals")
+            #with tf.control_dependencies([decrease_prob_of_random_goal]):
+            self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="sum_prev_goals")
 
             ############################################################################################################
 

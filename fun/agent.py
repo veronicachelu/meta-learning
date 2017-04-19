@@ -166,8 +166,8 @@ class Agent():
                     return 1
 
                 if FLAGS.train and episode_count % FLAGS.summary_interval == 0 and episode_count != 0 and \
-                                self.name == 'worker_0':
-                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'worker_0' and FLAGS.train == True:
+                                self.name == 'agent_0':
+                    if episode_count % FLAGS.checkpoint_interval == 0 and self.name == 'agent_0' and FLAGS.train == True:
                         saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
                                    global_step=self.global_episode)
                         print("Saved Model at {}".format(self.model_path + '/model-' + str(episode_count) + '.cptk'))
@@ -225,7 +225,7 @@ class Agent():
                     self.summary_writer.add_summary(self.summary, episode_count)
 
                     self.summary_writer.flush()
-                if self.name == 'worker_0':
+                if self.name == 'agent_0':
                     sess.run(self.increment_global_episode)
                 if not FLAGS.train:
                     test_episode_count += 1
