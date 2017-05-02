@@ -216,11 +216,16 @@ class FUNNetwork():
                 self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
 
     def conditional_backprop(self, do_backprop, tensor):
-        do_backprop = tf.Print(do_backprop, [do_backprop], "switch query")
+        # do_backprop = tf.Print(do_backprop, [do_backprop], "switch query")
         t = tf.cond(tf.cast(do_backprop, tf.bool),
-                    lambda: tf.Print(tensor, [0],
-                                     "backprop enabled for " + tensor.op.name),
+                    lambda: tf.identity(tensor),
                     lambda: tf.zeros_like(tensor))
+
+        #
+        # t = tf.cond(tf.cast(do_backprop, tf.bool),
+        #             lambda: tf.Print(tensor, [0],
+        #                              "backprop enabled for " + tensor.op.name),
+        #             lambda: tf.zeros_like(tensor))
         y = t + tf.stop_gradient(tensor - t)
         return y
 
