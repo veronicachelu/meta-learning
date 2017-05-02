@@ -22,6 +22,7 @@ class Agent():
 
         self.episode_lengths = []
         self.episode_mean_w_values = []
+        self.episode_mean_mean_intr_reward = []
         self.episode_mean_m_values = []
         self.summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.summaries_dir, FLAGS.model_name) + "/agent_" + str(self.thread_id))
         self.summary = tf.Summary()
@@ -66,8 +67,9 @@ class Agent():
                      }
 
         if summaries:
-            l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
+            l, w_v_l, i_r, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
                                                                     self.local_AC.w_value_loss,
+                                                                    self.local_AC.intr_rewards,
                                                                     self.local_AC.m_value_loss,
                                                                     self.local_AC.w_policy_loss,
                                                                     self.local_AC.goals_loss,
@@ -78,7 +80,8 @@ class Agent():
                                                                     self.local_AC.merged_summary,
                                                                     self.local_AC.image_summaries],
                                                                    feed_dict=feed_dict)
-            return l / len(rollout), w_v_l / len(rollout), m_v_l / len(rollout), p_l / len(rollout), g_l / len(rollout),\
+            return l / len(rollout), w_v_l / len(rollout), i_r / len(rollout), m_v_l / len(rollout), \
+                   p_l / len(rollout), g_l / len(rollout),\
                    e_l / len(rollout), g_n, v_n, ms, img_summ
         else:
             _ = sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
@@ -102,6 +105,7 @@ class Agent():
                 episode_buffer = []
 
                 episode_w_values = []
+                episode_intr_reward = []
                 episode_m_values = []
                 episode_reward = 0
                 episode_step_count = 0
@@ -125,8 +129,8 @@ class Agent():
                     }
 
 
-                    pi, w_v, m_v, w_rnn_state_new, m_rnn_state_new = sess.run(
-                        [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.m_value, self.local_AC.w_state_out,
+                    pi, w_v, i_r, m_v, w_rnn_state_new, m_rnn_state_new = sess.run(
+                        [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.intr_rewards, self.local_AC.m_value, self.local_AC.w_state_out,
                          self.local_AC.m_state_out], feed_dict=feed_dict)
                     a = np.random.choice(pi[0], p=pi[0])
                     a = np.argmax(pi == a)
@@ -138,6 +142,7 @@ class Agent():
 
                     episode_buffer.append([s, a, r, t, d, w_v[0, 0], m_v[0, 0]])
                     episode_w_values.append(w_v[0, 0])
+                    episode_intr_reward.append(i_r[0])
                     episode_m_values.append(m_v[0, 0])
                     episode_reward += r
                     total_steps += 1
@@ -153,11 +158,12 @@ class Agent():
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_w_values.append(np.mean(episode_w_values))
+                self.episode_mean_mean_intr_reward.append(np.mean(episode_w_values))
                 self.episode_mean_m_values.append(np.mean(episode_m_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                        l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0, summaries=True)
+                        l, w_v_l, i_ret, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0, summaries=True)
                     else:
                         self.train(episode_buffer, sess, 0.0)
 
@@ -175,16 +181,21 @@ class Agent():
                     mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
                     mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
                     mean_w_value = np.mean(self.episode_mean_w_values[-FLAGS.summary_interval:])
+                    mean_intr_reward = np.mean(self.episode_mean_mean_intr_reward[-FLAGS.summary_interval:])
                     mean_m_value = np.mean(self.episode_mean_m_values[-FLAGS.summary_interval:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
+
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     self.summary.value.add(tag='Perf/W_Value', simple_value=float(mean_w_value))
+                    self.summary.value.add(tag='Perf/Intrinsic_reward', simple_value=float(mean_intr_reward))
                     self.summary.value.add(tag='Perf/M_Value', simple_value=float(mean_m_value))
+
 
                     if FLAGS.train:
                         self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
                         self.summary.value.add(tag='Losses/W_Value Loss', simple_value=float(w_v_l))
+                        self.summary.value.add(tag='Losses/Intrinsic Reward', simple_value=float(i_ret))
                         self.summary.value.add(tag='Losses/M_Value Loss', simple_value=float(m_v_l))
                         self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
                         self.summary.value.add(tag='Losses/Goal Loss', simple_value=float(g_l))
