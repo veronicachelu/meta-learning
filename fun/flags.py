@@ -1,12 +1,12 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v0',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v1',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
-tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
+tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
@@ -41,6 +41,6 @@ tf.app.flags.DEFINE_integer('max_nb_episodes_train', 4000000000, """Max number o
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
 tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
 tf.app.flags.DEFINE_integer('manager_horizon', 8, """manager_horizon = r = c""")
-tf.app.flags.DEFINE_integer('K', 400, """manager_horiz = r = c""")
-tf.app.flags.DEFINE_integer('goal_embedding_size', 8, """goal_embedding_size""")
-tf.app.flags.DEFINE_integer('alpha', 0.5, """manager_horiz = r = c""")
+tf.app.flags.DEFINE_integer('K', 36, """manager_horiz = r = c""")
+tf.app.flags.DEFINE_integer('goal_embedding_size', 6, """goal_embedding_size""")
+tf.app.flags.DEFINE_integer('alpha', 0.5, """probability for random goal""")
