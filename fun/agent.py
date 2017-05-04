@@ -42,8 +42,8 @@ class Agent():
         m_values = rollout[:, 6]
 
         # if FLAGS.meta:
-        #     prev_rewards = [0] + rewards[:-1].tolist()
-        #     prev_actions = [0] + actions[:-1].tolist()
+        prev_rewards = [0] + rewards[:-1].tolist()
+        prev_actions = [0] + actions[:-1].tolist()
 
         # The advantage function uses "Generalized Advantage Estimation"
         rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
@@ -57,8 +57,8 @@ class Agent():
         feed_dict = {self.local_AC.w_extrinsic_return: w_discounted_rewards,
                      self.local_AC.m_extrinsic_return: m_discounted_rewards,
                      self.local_AC.inputs: np.stack(observations, axis=0),
-                     # self.local_AC.prev_rewards: prev_rewards,
-                     # self.local_AC.prev_actions: prev_actions,
+                     self.local_AC.prev_rewards: prev_rewards,
+                     self.local_AC.prev_actions: prev_actions,
                      self.local_AC.actions: actions,
                      self.local_AC.w_state_in[0]: w_rnn_state[0],
                      self.local_AC.w_state_in[1]: w_rnn_state[1],
@@ -111,6 +111,8 @@ class Agent():
                 episode_step_count = 0
                 d = False
                 t = 0
+                r = 0
+                a = 0
 
                 s, _, _, _ = self.env.reset()
                 m_rnn_state = self.local_AC.m_state_init
@@ -120,8 +122,8 @@ class Agent():
 
                     feed_dict = {
                         self.local_AC.inputs: [s],
-                        # self.local_AC.prev_rewards: [r],
-                        # self.local_AC.prev_actions: [a],
+                        self.local_AC.prev_rewards: [r],
+                        self.local_AC.prev_actions: [a],
                         self.local_AC.w_state_in[0]: w_rnn_state[0],
                         self.local_AC.w_state_in[1]: w_rnn_state[1],
                         self.local_AC.m_state_in[0]: m_rnn_state[0],
@@ -152,7 +154,7 @@ class Agent():
                     s = s1
 
                     # print(t)
-                    if t >= FLAGS.K:
+                    if t >= 400:
                         d = True
 
                 self.episode_rewards.append(episode_reward)
@@ -195,7 +197,6 @@ class Agent():
                     if FLAGS.train:
                         self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
                         self.summary.value.add(tag='Losses/W_Value Loss', simple_value=float(w_v_l))
-                        self.summary.value.add(tag='Losses/Intrinsic Reward', simple_value=float(i_ret))
                         self.summary.value.add(tag='Losses/M_Value Loss', simple_value=float(m_v_l))
                         self.summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
                         self.summary.value.add(tag='Losses/Goal Loss', simple_value=float(g_l))

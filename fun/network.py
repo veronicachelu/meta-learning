@@ -15,7 +15,12 @@ class FUNNetwork():
             self.inputs = tf.placeholder(shape=[None, FLAGS.game_size, FLAGS.game_size, FLAGS.game_channels],
                                          dtype=tf.float32, name="Inputs")
 
-
+            self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards")
+            self.prev_rewards_onehot = tf.one_hot(self.prev_rewards, 2, dtype=tf.float32,
+                                                  name="Prev_Rewards_OneHot")
+            self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
+            self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
+                                                  name="Prev_Actions_OneHot")
             self.conv = tf.contrib.layers.conv2d(
                 self.inputs, 32, 5, 2, activation_fn=tf.nn.elu, scope="conv1")
 
@@ -35,6 +40,9 @@ class FUNNetwork():
 
             self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), 48)
             self.f_percept = tf.nn.elu(self.fc)
+
+            self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot], 1,
+                               name="Concatenated_input")
 
             summary_f_percept_act = tf.contrib.layers.summarize_activation(self.f_percept)
 
@@ -135,16 +143,25 @@ class FUNNetwork():
 
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
-            def gather_intrinsic_rewards(t):
-                t = tf.cast(t, tf.int32)
-                indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t - 1, 0))
+            def calculate_intrinsic_reward(t):
+                indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t, 0))
                 original_state = tf.map_fn(lambda i: self.f_Mspace[t, :], tf.to_float(indices))
-                goals = tf.gather(self.goals, indices)
+                goals = tf.gather(self.randomized_goals, indices)
                 state_diff = original_state - tf.gather(self.f_Mspace, indices)
-                intrinsic_reward = (1 / FLAGS.manager_horizon) * tf.reduce_sum(
+                intrinsic_reward = tf.cast((1 / tf.shape(state_diff)[0]), tf.float32) * tf.reduce_sum(
                     tf.losses.cosine_distance(state_diff, goals, dim=1))
 
                 return intrinsic_reward
+
+            def gather_intrinsic_rewards(t):
+                t = tf.cast(t, tf.int32)
+
+                intrinsic_reward = tf.cond(tf.cast(tf.equal(t, tf.constant(0)), tf.bool),
+                                        lambda: tf.constant(0.0),
+                                        lambda: calculate_intrinsic_reward(t))
+
+                return intrinsic_reward
+
 
             self.intr_rewards = tf.cast(
                 tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.to_float(tf.range(0, step_size[0])),
@@ -162,7 +179,7 @@ class FUNNetwork():
 
                 self.f_Mspace_c = tf.cast(tf.map_fn(lambda t: gather_state_at_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="state_at_horiz"), dtype=tf.float32)
                 self.state_diff = self.f_Mspace_c - self.f_Mspace
-                self.cos_sim_state_diff = tf.losses.cosine_distance(tf.stop_gradient(self.state_diff), self.goals, dim=1)
+                self.cos_sim_state_diff = tf.losses.cosine_distance(tf.stop_gradient(self.state_diff), self.randomized_goals, dim=1)
 
                 self.m_advantages = self.m_extrinsic_return - tf.stop_gradient(tf.reshape(self.m_value, [-1]))
                 self.goals_loss = tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
@@ -215,28 +232,35 @@ class FUNNetwork():
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
                 self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
 
-    def conditional_backprop(self, do_backprop, tensor):
-        # do_backprop = tf.Print(do_backprop, [do_backprop], "switch query")
+    # def conditional_backprop(self, do_backprop, tensor, previous_tensor):
+    #     # do_backprop = tf.Print(do_backprop, [do_backprop], "switch query")
+    #     t = tf.cond(tf.cast(do_backprop, tf.bool),
+    #                 lambda: tf.identity(tensor),
+    #                 lambda: tf.zeros_like(tensor))
+    #
+    #     #
+    #     # t = tf.cond(tf.cast(do_backprop, tf.bool),
+    #     #             lambda: tf.Print(tensor, [0],
+    #     #                              "backprop enabled for " + tensor.op.name),
+    #     #             lambda: tf.zeros_like(tensor))
+    #     y = t + tf.stop_gradient(tensor - t)
+    #     return y
+    def conditional_backprop(self, do_backprop, tensor, previous_tensor):
         t = tf.cond(tf.cast(do_backprop, tf.bool),
                     lambda: tf.identity(tensor),
-                    lambda: tf.zeros_like(tensor))
+                    lambda: tf.identity(previous_tensor))
 
-        #
-        # t = tf.cond(tf.cast(do_backprop, tf.bool),
-        #             lambda: tf.Print(tensor, [0],
-        #                              "backprop enabled for " + tensor.op.name),
-        #             lambda: tf.zeros_like(tensor))
-        y = t + tf.stop_gradient(tensor - t)
-        return y
+        return t
+
 
     def fast_dlstm(self, s_t, state_in, lstm, chunks, h_size):
-        def dilate_one_time_step(one_h, switcher, num_chunks):
+        def dilate_one_time_step(one_h, previous_one_h, switcher, num_chunks):
             h_slices = []
 
             chunk_step_size = h_size // num_chunks
             for switch_step, h_step in zip(range(num_chunks), range(0, h_size, chunk_step_size)):
                 one_switch = switcher[switch_step]
-                h_s = self.conditional_backprop(one_switch, one_h[h_step: h_step + chunk_step_size])
+                h_s = self.conditional_backprop(one_switch, one_h[h_step: h_step + chunk_step_size], previous_one_h[h_step: h_step + chunk_step_size])
                 h_slices.append(h_s)
             dh = tf.stack(h_slices)
             dh = tf.reshape(dh, [-1, h_size])
@@ -249,7 +273,7 @@ class FUNNetwork():
             out, state_out = lstm(current_input, previous_output[1])
             i = previous_output[2]
             basis_i = tf.one_hot(i, depth=chunks)
-            state_out_dilated = dilate_one_time_step(tf.squeeze(state_out[0]), basis_i, chunks)
+            state_out_dilated = dilate_one_time_step(tf.squeeze(state_out[0]), tf.squeeze(previous_output[1][0]), basis_i, chunks)
             state_out = tf.contrib.rnn.LSTMStateTuple(state_out_dilated, state_out[1])
             i += tf.constant(1)
             new_i = tf.mod(i, chunks)
