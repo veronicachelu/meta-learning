@@ -38,7 +38,7 @@ class FUNNetwork():
                 self.image_summaries.append(
                     tf.summary.image('input', self.inputs, max_outputs=1))
 
-            self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), 48)
+            self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), FLAGS.hidden_dim)
             self.f_percept = tf.nn.elu(self.fc)
 
             self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot], 1,
@@ -49,14 +49,14 @@ class FUNNetwork():
             ############################################################################################################
             # Manager network
 
-            self.f_Mspace = tf.contrib.layers.fully_connected(self.f_percept, 48)
+            self.f_Mspace = tf.contrib.layers.fully_connected(self.f_percept, FLAGS.hidden_dim)
             self.f_Mspace = tf.nn.elu(self.f_Mspace)
             summary_f_Mspace_act = tf.contrib.layers.summarize_activation(self.f_Mspace)
 
             m_rnn_in = tf.expand_dims(self.f_Mspace, [0], name="Mrnn_in")
             step_size = tf.shape(self.inputs)[:1]
 
-            m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(48)
+            m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(FLAGS.hidden_dim)
             m_c_init = np.zeros((1, m_lstm_cell.state_size.c), np.float32)
             m_h_init = np.zeros((1, m_lstm_cell.state_size.h), np.float32)
             self.m_state_init = [m_c_init, m_h_init]
@@ -65,11 +65,11 @@ class FUNNetwork():
             self.m_state_in = (m_c_in, m_h_in)
             m_state_in = tf.contrib.rnn.LSTMStateTuple(m_c_in, m_h_in)
 
-            m_lstm_outputs, m_lstm_state = self.fast_dlstm(m_rnn_in, m_state_in, m_lstm_cell, FLAGS.manager_horizon, 48)
+            m_lstm_outputs, m_lstm_state = self.fast_dlstm(m_rnn_in, m_state_in, m_lstm_cell, FLAGS.manager_horizon, FLAGS.hidden_dim)
 
             m_lstm_c, m_lstm_h = m_lstm_state
             self.m_state_out = (m_lstm_c[-1, :1, :], m_lstm_h[-1, :1, :])
-            m_rnn_out = tf.reshape(m_lstm_outputs, [-1, 48], name="MRNN_out")
+            m_rnn_out = tf.reshape(m_lstm_outputs, [-1, FLAGS.hidden_dim], name="MRNN_out")
 
             summary_mrnn_act = tf.contrib.layers.summarize_activation(m_rnn_out)
 
@@ -78,7 +78,7 @@ class FUNNetwork():
             def randomize_goals(t):
                 t = tf.cast(t, tf.int32)
                 to_update = tf.cond(tf.less(self.prob_of_random_goal, tf.constant(FLAGS.final_random_goal_prob, dtype=tf.float32)),
-                                 lambda: tf.random_normal([48,]), lambda: self.goals[t,:])
+                                 lambda: tf.random_normal([FLAGS.hidden_dim,]), lambda: self.goals[t,:])
 
                 return to_update
 
@@ -86,7 +86,7 @@ class FUNNetwork():
 
             #decrease_prob_of_random_goal = self.prob_of_random_goal.assign_sub((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps)
 
-            m_fc_value_w = tf.get_variable("M_FC_Value_W", shape=[48, 1],
+            m_fc_value_w = tf.get_variable("M_FC_Value_W", shape=[FLAGS.hidden_dim, 1],
                                            initializer=normalized_columns_initializer(1.0))
             self.m_value = tf.matmul(m_rnn_out, m_fc_value_w, name="M_Value")
 
@@ -104,7 +104,7 @@ class FUNNetwork():
             ############################################################################################################
 
             # Worker network
-            # self.sum_prev_goals = tf.placeholder(shape=[None, 48], dtype=tf.int32, name="Prev_c_Goals_sum")
+            # self.sum_prev_goals = tf.placeholder(shape=[None, FLAGS.hidden_dim], dtype=tf.int32, name="Prev_c_Goals_sum")
 
             w_rnn_in = tf.expand_dims(self.f_percept, [0], name="Wrnn_in")
             step_size = tf.shape(self.inputs)[:1]
@@ -129,7 +129,7 @@ class FUNNetwork():
 
             summary_wrnn_act = tf.contrib.layers.summarize_activation(w_rnn_out)
 
-            goal_encoding = tf.contrib.layers.fully_connected(self.sum_prev_goals, FLAGS.goal_embedding_size, scope="goal_emb")
+            goal_encoding = tf.contrib.layers.fully_connected(self.sum_prev_goals, FLAGS.goal_embedding_size, biases_initializer=None, scope="goal_emb")
 
             self.w_policy = tf.squeeze(tf.matmul(w_rnn_out, tf.expand_dims(goal_encoding, 2), name="W_Policy"), 2)
             self.w_policy = tf.contrib.layers.flatten(self.w_policy, scope="W_Policy_flat")

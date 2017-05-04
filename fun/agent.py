@@ -154,7 +154,7 @@ class Agent():
                     s = s1
 
                     # print(t)
-                    if t >= 400:
+                    if t >= FLAGS.BTT_length:
                         d = True
 
                 self.episode_rewards.append(episode_reward)
