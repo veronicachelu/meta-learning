@@ -73,7 +73,7 @@ class FUNNetwork():
 
             summary_mrnn_act = tf.contrib.layers.summarize_activation(m_rnn_out)
 
-            self.goals = tf.nn.l2_normalize(m_rnn_out, 1)
+            self.goals = m_rnn_out
 
             def randomize_goals(t):
                 t = tf.cast(t, tf.int32)
@@ -83,6 +83,8 @@ class FUNNetwork():
                 return to_update
 
             self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])), name="randomize_goals")
+
+            self.randomized_goals = tf.nn.l2_normalize(self.randomized_goals, 1)
 
             self.decrease_prob_of_random_goal = tf.assign_sub(self.prob_of_random_goal, tf.constant((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps))
 
@@ -150,7 +152,7 @@ class FUNNetwork():
                     goals = tf.gather(self.randomized_goals, indices)
                     state_diff = original_state - tf.gather(self.f_Mspace, indices)
                     intrinsic_reward = tf.cast((1 / tf.shape(state_diff)[0]), tf.float32) * tf.reduce_sum(
-                        tf.losses.cosine_distance(state_diff, goals, dim=1))
+                        self.cosine_distance(state_diff, goals, dim=1))
 
                     return intrinsic_reward
 
@@ -178,7 +180,7 @@ class FUNNetwork():
 
                 self.f_Mspace_c = tf.cast(tf.map_fn(lambda t: gather_state_at_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="state_at_horiz"), dtype=tf.float32)
                 self.state_diff = self.f_Mspace_c - self.f_Mspace
-                self.cos_sim_state_diff = tf.losses.cosine_distance(tf.stop_gradient(self.state_diff), self.randomized_goals, dim=1)
+                self.cos_sim_state_diff = self.cosine_distance(tf.stop_gradient(self.state_diff), self.randomized_goals, dim=1)
 
                 self.m_advantages = self.m_extrinsic_return - tf.stop_gradient(tf.reshape(self.m_value, [-1]))
                 self.goals_loss = tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
@@ -345,3 +347,11 @@ class FUNNetwork():
 
         # scaling to [0, 255] is not necessary for tensorboard
         return x7
+
+    def cosine_distance(self, v1, v2, dim):
+        v1_norm = tf.nn.l2_normalize(v1, dim)
+        v2_norm = tf.nn.l2_normalize(v2, dim)
+        sim = tf.matmul(
+            v1_norm, v2_norm, transpose_b=True)
+
+        return sim
