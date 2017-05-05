@@ -67,7 +67,7 @@ class Agent():
                      }
 
         if summaries:
-            l, w_v_l, i_r, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ = sess.run([self.local_AC.loss,
+            l, w_v_l, i_r, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ, cos_sim_state_diff, intrinsic_return = sess.run([self.local_AC.loss,
                                                                     self.local_AC.w_value_loss,
                                                                     self.local_AC.intr_rewards,
                                                                     self.local_AC.m_value_loss,
@@ -78,11 +78,13 @@ class Agent():
                                                                     self.local_AC.var_norms,
                                                                     self.local_AC.apply_grads,
                                                                     self.local_AC.merged_summary,
-                                                                    self.local_AC.image_summaries],
+                                                                    self.local_AC.image_summaries,
+                                                                    self.local_AC.cos_sim_state_diff,
+                                                                    self.local_AC.discounted_intrinsic_rewards],
                                                                    feed_dict=feed_dict)
             return l / len(rollout), w_v_l / len(rollout), i_r / len(rollout), m_v_l / len(rollout), \
                    p_l / len(rollout), g_l / len(rollout),\
-                   e_l / len(rollout), g_n, v_n, ms, img_summ
+                   e_l / len(rollout), g_n, v_n, ms, img_summ, m_discounted_rewards, w_discounted_rewards, cos_sim_state_diff, intrinsic_return
         else:
             _ = sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
             return None
@@ -101,7 +103,8 @@ class Agent():
                 if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
                     return 0
 
-                sess.run(self.update_local_vars)
+                sess.run([self.update_local_vars, self.local_AC.decrease_prob_of_random_goal])
+
                 episode_buffer = []
 
                 episode_w_values = []
@@ -109,6 +112,7 @@ class Agent():
                 episode_m_values = []
                 episode_reward = 0
                 episode_step_count = 0
+                episode_goals = []
                 d = False
                 t = 0
                 r = 0
@@ -131,9 +135,9 @@ class Agent():
                     }
 
 
-                    pi, w_v, i_r, m_v, w_rnn_state_new, m_rnn_state_new = sess.run(
+                    pi, w_v, i_r, m_v, w_rnn_state_new, m_rnn_state_new, goals = sess.run(
                         [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.intr_rewards, self.local_AC.m_value, self.local_AC.w_state_out,
-                         self.local_AC.m_state_out], feed_dict=feed_dict)
+                         self.local_AC.m_state_out, self.local_AC.randomized_goals], feed_dict=feed_dict)
                     a = np.random.choice(pi[0], p=pi[0])
                     a = np.argmax(pi == a)
 
@@ -143,6 +147,7 @@ class Agent():
                     s1, r, d, _ = self.env.step(a)
 
                     episode_buffer.append([s, a, r, t, d, w_v[0, 0], m_v[0, 0]])
+                    episode_goals.append(goals[0])
                     episode_w_values.append(w_v[0, 0])
                     episode_intr_reward.append(i_r[0])
                     episode_m_values.append(m_v[0, 0])
@@ -165,7 +170,7 @@ class Agent():
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                        l, w_v_l, i_ret, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum = self.train(episode_buffer, sess, 0.0, summaries=True)
+                        l, w_v_l, i_ret, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum, m_return, w_return, cos_sim_state_diff, intrinsic_return = self.train(episode_buffer, sess, 0.0, summaries=True)
                     else:
                         self.train(episode_buffer, sess, 0.0)
 
@@ -195,6 +200,14 @@ class Agent():
 
 
                     if FLAGS.train:
+                        mean_m_return = np.mean(m_return)
+                        self.summary.value.add(tag='Returns/Mean M_Return', simple_value=float(mean_m_return))
+                        mean_w_return = np.mean(w_return)
+                        self.summary.value.add(tag='Returns/Mean W_Return', simple_value=float(mean_w_return))
+                        mean_intrinsic_return = np.mean(intrinsic_return)
+                        self.summary.value.add(tag='Returns/Mean Intrinsic_Return', simple_value=float(mean_intrinsic_return))
+                        mean_cos_sim_state_diff = np.mean(cos_sim_state_diff)
+                        self.summary.value.add(tag='Statistics/Mean Cos Sim', simple_value=float(mean_cos_sim_state_diff))
                         self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
                         self.summary.value.add(tag='Losses/W_Value Loss', simple_value=float(w_v_l))
                         self.summary.value.add(tag='Losses/M_Value Loss', simple_value=float(m_v_l))

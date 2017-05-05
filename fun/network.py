@@ -84,7 +84,7 @@ class FUNNetwork():
 
             self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])), name="randomize_goals")
 
-            #decrease_prob_of_random_goal = self.prob_of_random_goal.assign_sub((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps)
+            self.decrease_prob_of_random_goal = tf.assign_sub(self.prob_of_random_goal, tf.constant((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps))
 
             m_fc_value_w = tf.get_variable("M_FC_Value_W", shape=[FLAGS.hidden_dim, 1],
                                            initializer=normalized_columns_initializer(1.0))
@@ -143,31 +143,30 @@ class FUNNetwork():
 
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
-            def calculate_intrinsic_reward(t):
-                indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t, 0))
-                original_state = tf.map_fn(lambda i: self.f_Mspace[t, :], tf.to_float(indices))
-                goals = tf.gather(self.randomized_goals, indices)
-                state_diff = original_state - tf.gather(self.f_Mspace, indices)
-                intrinsic_reward = tf.cast((1 / tf.shape(state_diff)[0]), tf.float32) * tf.reduce_sum(
-                    tf.losses.cosine_distance(state_diff, goals, dim=1))
-
-                return intrinsic_reward
-
-            def gather_intrinsic_rewards(t):
-                t = tf.cast(t, tf.int32)
-
-                intrinsic_reward = tf.cond(tf.cast(tf.equal(t, tf.constant(0)), tf.bool),
-                                        lambda: tf.constant(0.0),
-                                        lambda: calculate_intrinsic_reward(t))
-
-                return intrinsic_reward
-
-
-            self.intr_rewards = tf.cast(
-                tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.to_float(tf.range(0, step_size[0])),
-                          name="intrinsic_rewards"), dtype=tf.float32)
-
             if scope != 'global':
+                def calculate_intrinsic_reward(t):
+                    indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t, 0))
+                    original_state = tf.map_fn(lambda i: self.f_Mspace[t, :], tf.to_float(indices))
+                    goals = tf.gather(self.randomized_goals, indices)
+                    state_diff = original_state - tf.gather(self.f_Mspace, indices)
+                    intrinsic_reward = tf.cast((1 / tf.shape(state_diff)[0]), tf.float32) * tf.reduce_sum(
+                        tf.losses.cosine_distance(state_diff, goals, dim=1))
+
+                    return intrinsic_reward
+
+                def gather_intrinsic_rewards(t):
+                    t = tf.cast(t, tf.int32)
+
+                    intrinsic_reward = tf.cond(tf.cast(tf.equal(t, tf.constant(0)), tf.bool),
+                                               lambda: tf.constant(0.0),
+                                               lambda: calculate_intrinsic_reward(t))
+
+                    return intrinsic_reward
+
+                self.intr_rewards = tf.cast(
+                    tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.to_float(tf.range(0, step_size[0])),
+                              name="intrinsic_rewards"), dtype=tf.float32)
+
                 self.w_extrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
                 self.m_extrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
 
@@ -194,9 +193,9 @@ class FUNNetwork():
 
                 self.responsible_outputs = tf.reduce_sum(self.w_policy * self.actions_onehot, [1])
 
-                discounted_intrinsic_rewards = tf.scan(lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, self.intr_rewards, name="discounted_intr_rewards")
+                self.discounted_intrinsic_rewards = tf.scan(lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, self.intr_rewards, name="discounted_intr_rewards")
 
-                self.intrinsic_return = FLAGS.alpha * discounted_intrinsic_rewards[-1]
+                self.intrinsic_return = FLAGS.alpha * self.discounted_intrinsic_rewards[-1]
                 self.total_return = self.w_extrinsic_return + self.intrinsic_return
                 self.w_advantages = self.total_return - tf.stop_gradient(tf.reshape(self.w_value, [-1]))
 
