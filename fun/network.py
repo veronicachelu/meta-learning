@@ -136,17 +136,17 @@ class FUNNetwork():
 
             w_lstm_c, w_lstm_h = w_lstm_state
             self.w_state_out = (w_lstm_c[:1, :], w_lstm_h[:1, :])
-            w_rnn_out = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions, FLAGS.goal_embedding_size],
+            Ut = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions, FLAGS.goal_embedding_size],
                                    name="Ut")
-            w_rnn_out_flat = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions * FLAGS.goal_embedding_size],
+            Ut_flat = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions * FLAGS.goal_embedding_size],
                                         name="Ut_flat")
 
-            summary_wrnn_act = tf.contrib.layers.summarize_activation(w_rnn_out)
+            summary_wrnn_act = tf.contrib.layers.summarize_activation(Ut)
 
-            goal_encoding = tf.contrib.layers.fully_connected(self.sum_prev_goals, FLAGS.goal_embedding_size,
+            goal_encoding = tf.contrib.layers.fully_connected(tf.stop_gradient(self.sum_prev_goals), FLAGS.goal_embedding_size,
                                                               biases_initializer=None, scope="goal_emb")
 
-            self.w_policy = tf.squeeze(tf.matmul(w_rnn_out, tf.expand_dims(goal_encoding, 2)), 2)
+            self.w_policy = tf.squeeze(tf.matmul(Ut, tf.expand_dims(goal_encoding, 2)), 2)
             self.w_policy = tf.contrib.layers.flatten(self.w_policy)
             self.w_policy = tf.nn.softmax(self.w_policy, name="W_Policy")
 
@@ -154,7 +154,7 @@ class FUNNetwork():
 
             w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size, 1],
                                            initializer=normalized_columns_initializer(1.0))
-            self.w_value = tf.matmul(w_rnn_out_flat, w_fc_value_w, name="W_Value")
+            self.w_value = tf.matmul(Ut_flat, w_fc_value_w, name="W_Value")
 
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
@@ -216,7 +216,7 @@ class FUNNetwork():
                     name="discounted_intr_rewards")
                 self.discounted_intrinsic_rewards = tf.reverse(self.discounted_intrinsic_rewards, [0])[:-1]
                 self.intrinsic_return = FLAGS.alpha * self.discounted_intrinsic_rewards
-                self.total_return = self.w_extrinsic_return + self.intrinsic_return
+                self.total_return = self.w_extrinsic_return + tf.stop_gradient(self.intrinsic_return)
                 self.w_advantages = self.total_return - tf.stop_gradient(tf.reshape(self.w_value, [-1]))
 
                 # Loss functions
