@@ -21,17 +21,18 @@ class FUNNetwork():
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
-            self.conv = tf.contrib.layers.conv2d(
-                self.inputs, 32, 5, 2, activation_fn=tf.nn.elu, scope="conv1")
-
             self.image_summaries = []
-            with tf.variable_scope('conv1'):
-                tf.get_variable_scope().reuse_variables()
-                weights = tf.get_variable('weights')
-                grid = self.put_kernels_on_grid(weights)
-                self.image_summaries.append(
-                    tf.summary.image('kernels', grid, max_outputs=1))
-
+            if FLAGS.game_size > 5:
+                self.conv = tf.contrib.layers.conv2d(
+                    self.inputs, 32, 5, 2, activation_fn=tf.nn.elu, scope="conv1")
+                with tf.variable_scope('conv1'):
+                    tf.get_variable_scope().reuse_variables()
+                    weights = tf.get_variable('weights')
+                    grid = self.put_kernels_on_grid(weights)
+                    self.image_summaries.append(
+                        tf.summary.image('kernels', grid, max_outputs=1))
+            else:
+                self.conv = self.inputs
 
             with tf.variable_scope('inputs'):
                 tf.get_variable_scope().reuse_variables()
@@ -39,10 +40,10 @@ class FUNNetwork():
                     tf.summary.image('input', self.inputs, max_outputs=1))
 
             self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), FLAGS.hidden_dim)
-            self.f_percept = tf.nn.elu(self.fc)
+            self.f_percept = tf.nn.elu(self.fc, name="Zt")
 
             self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot], 1,
-                               name="Concatenated_input")
+                               name="Zt_r")
 
             summary_f_percept_act = tf.contrib.layers.summarize_activation(self.f_percept)
 
@@ -50,7 +51,7 @@ class FUNNetwork():
             # Manager network
 
             self.f_Mspace = tf.contrib.layers.fully_connected(self.f_percept, FLAGS.hidden_dim)
-            self.f_Mspace = tf.nn.elu(self.f_Mspace)
+            self.f_Mspace = tf.nn.elu(self.f_Mspace, name="St")
             summary_f_Mspace_act = tf.contrib.layers.summarize_activation(self.f_Mspace)
 
             m_rnn_in = tf.expand_dims(self.f_Mspace, [0], name="Mrnn_in")
@@ -69,22 +70,24 @@ class FUNNetwork():
 
             m_lstm_c, m_lstm_h = m_lstm_state
             self.m_state_out = (m_lstm_c[-1, :1, :], m_lstm_h[-1, :1, :])
-            m_rnn_out = tf.reshape(m_lstm_outputs, [-1, FLAGS.hidden_dim], name="MRNN_out")
-
-            summary_mrnn_act = tf.contrib.layers.summarize_activation(m_rnn_out)
+            m_rnn_out = tf.reshape(m_lstm_outputs, [-1, FLAGS.hidden_dim])
 
             self.goals = m_rnn_out
+
+            self.normalized_goals = tf.nn.l2_normalize(self.goals, 1, name="Gt")
+
+            summary_goals = tf.contrib.layers.summarize_activation(self.normalized_goals)
 
             def randomize_goals(t):
                 t = tf.cast(t, tf.int32)
                 to_update = tf.cond(tf.less(self.prob_of_random_goal, tf.constant(FLAGS.final_random_goal_prob, dtype=tf.float32)),
-                                 lambda: tf.random_normal([FLAGS.hidden_dim,]), lambda: self.goals[t,:])
+                                 lambda: tf.random_normal([FLAGS.hidden_dim,]), lambda: self.normalized_goals[t,:])
 
                 return to_update
 
-            self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])), name="randomize_goals")
+            self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])), name="random_gt")
 
-            self.randomized_goals = tf.nn.l2_normalize(self.randomized_goals, 1)
+            summary_random_goals = tf.contrib.layers.summarize_activation(self.randomized_goals)
 
             self.decrease_prob_of_random_goal = tf.assign_sub(self.prob_of_random_goal, tf.constant((FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps))
 
@@ -125,17 +128,17 @@ class FUNNetwork():
 
             w_lstm_c, w_lstm_h = w_lstm_state
             self.w_state_out = (w_lstm_c[:1, :], w_lstm_h[:1, :])
-            w_rnn_out = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions, FLAGS.goal_embedding_size], name="WRNN_out")
+            w_rnn_out = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions, FLAGS.goal_embedding_size], name="Ut")
             w_rnn_out_flat = tf.reshape(w_lstm_outputs, [step_size[0], FLAGS.nb_actions * FLAGS.goal_embedding_size],
-                                   name="WRNN_out")
+                                   name="Ut_flat")
 
             summary_wrnn_act = tf.contrib.layers.summarize_activation(w_rnn_out)
 
             goal_encoding = tf.contrib.layers.fully_connected(self.sum_prev_goals, FLAGS.goal_embedding_size, biases_initializer=None, scope="goal_emb")
 
-            self.w_policy = tf.squeeze(tf.matmul(w_rnn_out, tf.expand_dims(goal_encoding, 2), name="W_Policy"), 2)
-            self.w_policy = tf.contrib.layers.flatten(self.w_policy, scope="W_Policy_flat")
-            self.w_policy = tf.nn.softmax(self.w_policy, name="W_Policy_soft")
+            self.w_policy = tf.squeeze(tf.matmul(w_rnn_out, tf.expand_dims(goal_encoding, 2)), 2)
+            self.w_policy = tf.contrib.layers.flatten(self.w_policy)
+            self.w_policy = tf.nn.softmax(self.w_policy, name="W_Policy")
 
             summary_w_policy_act = tf.contrib.layers.summarize_activation(self.w_policy)
 
@@ -180,7 +183,7 @@ class FUNNetwork():
 
                 self.f_Mspace_c = tf.cast(tf.map_fn(lambda t: gather_state_at_horiz(t), tf.to_float(tf.range(0, step_size[0])), name="state_at_horiz"), dtype=tf.float32)
                 self.state_diff = self.f_Mspace_c - self.f_Mspace
-                self.cos_sim_state_diff = self.cosine_distance(tf.stop_gradient(self.state_diff), self.randomized_goals, dim=1)
+                self.cos_sim_state_diff = self.cosine_distance(tf.stop_gradient(self.state_diff), self.normalized_goals, dim=1)
 
                 self.m_advantages = self.m_extrinsic_return - tf.stop_gradient(tf.reshape(self.m_value, [-1]))
                 self.goals_loss = tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
@@ -190,14 +193,12 @@ class FUNNetwork():
                 self.actions_onehot = tf.one_hot(self.actions, FLAGS.nb_actions, dtype=tf.float32,
                                                  name="Actions_Onehot")
 
-                self.w_return = tf.placeholder(shape=[None], dtype=tf.float32)
-                # self.w_advantages = tf.placeholder(shape=[None], dtype=tf.float32)
-
                 self.responsible_outputs = tf.reduce_sum(self.w_policy * self.actions_onehot, [1])
 
-                self.discounted_intrinsic_rewards = tf.scan(lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, self.intr_rewards, name="discounted_intr_rewards")
-
-                self.intrinsic_return = FLAGS.alpha * self.discounted_intrinsic_rewards[-1]
+                self.intr_rewards = tf.concat([self.intr_rewards, tf.reshape(self.w_value, [-1])[-1]], axis=0)
+                self.discounted_intrinsic_rewards = tf.scan(lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, tf.reverse(self.intr_rewards, 0), name="discounted_intr_rewards")
+                self.discounted_intrinsic_rewards = tf.reverse(self.discounted_intrinsic_rewards)[:-1]
+                self.intrinsic_return = FLAGS.alpha * self.discounted_intrinsic_rewards
                 self.total_return = self.w_extrinsic_return + self.intrinsic_return
                 self.w_advantages = self.total_return - tf.stop_gradient(tf.reshape(self.w_value, [-1]))
 
@@ -205,12 +206,6 @@ class FUNNetwork():
                 self.w_value_loss = FLAGS.w_beta_v * tf.reduce_sum(
                     tf.square(self.total_return - tf.reshape(self.w_value, [-1])))
                 self.entropy = - tf.reduce_sum(self.w_policy * tf.log(self.w_policy + 1e-7))
-                # starter_beta_e = 1.0
-                # end_beta_e = 0.0
-                # decay_steps = 20000
-                # self.beta_e = tf.train.polynomial_decay(starter_beta_e, global_step,
-                #                                         decay_steps, end_beta_e,
-                #                                         power=0.5)
 
                 self.w_policy_loss = -tf.reduce_sum(
                     tf.log(self.responsible_outputs + 1e-7) * self.w_advantages) - self.entropy * FLAGS.beta_e
@@ -222,7 +217,8 @@ class FUNNetwork():
                 self.var_norms = tf.global_norm(local_vars)
                 grads, self.grad_norms = tf.clip_by_global_norm(self.gradients, FLAGS.gradient_clip_value)
 
-                self.worker_summaries = [summary_f_percept_act, summary_f_Mspace_act, summary_mrnn_act, summary_m_value_act,
+                self.worker_summaries = [summary_f_percept_act, summary_f_Mspace_act, summary_goals, summary_random_goals,
+                                         summary_m_value_act,
                                          summary_wrnn_act, summary_w_policy_act, summary_w_value_act]
                 for grad, weight in zip(grads, local_vars):
                     self.worker_summaries.append(tf.summary.histogram(weight.name + '_grad', grad))

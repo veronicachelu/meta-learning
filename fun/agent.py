@@ -16,13 +16,8 @@ class Agent():
         self.increment_global_episode = self.global_episode.assign_add(1)
         self.episode_rewards = []
 
-        # if not FLAGS.train:
-        self.episode_optimal_rewards = []
-        self.episodes_suboptimal_arms = []
-
         self.episode_lengths = []
         self.episode_mean_w_values = []
-        self.episode_mean_mean_intr_reward = []
         self.episode_mean_m_values = []
         self.summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.summaries_dir, FLAGS.model_name) + "/agent_" + str(self.thread_id))
         self.summary = tf.Summary()
@@ -135,8 +130,8 @@ class Agent():
                     }
 
 
-                    pi, w_v, i_r, m_v, w_rnn_state_new, m_rnn_state_new, goals = sess.run(
-                        [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.intr_rewards, self.local_AC.m_value, self.local_AC.w_state_out,
+                    pi, w_v, m_v, w_rnn_state_new, m_rnn_state_new, goals = sess.run(
+                        [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.m_value, self.local_AC.w_state_out,
                          self.local_AC.m_state_out, self.local_AC.randomized_goals], feed_dict=feed_dict)
                     a = np.random.choice(pi[0], p=pi[0])
                     a = np.argmax(pi == a)
@@ -149,7 +144,6 @@ class Agent():
                     episode_buffer.append([s, a, r, t, d, w_v[0, 0], m_v[0, 0]])
                     episode_goals.append(goals[0])
                     episode_w_values.append(w_v[0, 0])
-                    episode_intr_reward.append(i_r[0])
                     episode_m_values.append(m_v[0, 0])
                     episode_reward += r
                     total_steps += 1
@@ -165,7 +159,6 @@ class Agent():
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
                 self.episode_mean_w_values.append(np.mean(episode_w_values))
-                self.episode_mean_mean_intr_reward.append(np.mean(episode_w_values))
                 self.episode_mean_m_values.append(np.mean(episode_m_values))
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
@@ -188,14 +181,12 @@ class Agent():
                     mean_reward = np.mean(self.episode_rewards[-FLAGS.summary_interval:])
                     mean_length = np.mean(self.episode_lengths[-FLAGS.summary_interval:])
                     mean_w_value = np.mean(self.episode_mean_w_values[-FLAGS.summary_interval:])
-                    mean_intr_reward = np.mean(self.episode_mean_mean_intr_reward[-FLAGS.summary_interval:])
                     mean_m_value = np.mean(self.episode_mean_m_values[-FLAGS.summary_interval:])
 
                     self.summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
 
                     self.summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
                     self.summary.value.add(tag='Perf/W_Value', simple_value=float(mean_w_value))
-                    self.summary.value.add(tag='Perf/Intrinsic_reward', simple_value=float(mean_intr_reward))
                     self.summary.value.add(tag='Perf/M_Value', simple_value=float(mean_m_value))
 
 
