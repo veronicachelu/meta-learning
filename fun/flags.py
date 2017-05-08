@@ -1,16 +1,16 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-v2',
+tf.app.flags.DEFINE_string('game', 'Gridworld-x10_v2',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
-tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
+tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
-tf.app.flags.DEFINE_boolean('show_training', True,
+tf.app.flags.DEFINE_boolean('show_training', False,
                             """Show windows with workers training""")
 tf.app.flags.DEFINE_string('checkpoint_dir', './models',
                            """Directory where to save model checkpoints.""")
@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_string('test_experiments_dir', './test_experiments',
                            """Directory where to write event test experiments""")
 tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
-tf.app.flags.DEFINE_boolean('monitor', True,
+tf.app.flags.DEFINE_boolean('monitor', False,
                             """Monitor test with gym monitor""")
 tf.app.flags.DEFINE_integer('summary_interval', 500, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 500, """Number of episodes of interval between checkpoint saves""")
