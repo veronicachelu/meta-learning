@@ -152,9 +152,9 @@ class FUNNetwork():
 
             summary_w_policy_act = tf.contrib.layers.summarize_activation(self.w_policy)
 
-            w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size, 1],
+            w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size + FLAGS.goal_embedding_size, 1],
                                            initializer=normalized_columns_initializer(1.0))
-            self.w_value = tf.matmul(Ut_flat, w_fc_value_w, name="W_Value")
+            self.w_value = tf.matmul(tf.concat([Ut_flat, goal_encoding], 1), w_fc_value_w, name="W_Value")
 
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
