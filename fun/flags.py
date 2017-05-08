@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-x10_v2',
+tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v2',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
