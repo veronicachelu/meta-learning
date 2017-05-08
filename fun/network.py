@@ -146,15 +146,19 @@ class FUNNetwork():
             goal_encoding = tf.contrib.layers.fully_connected(tf.stop_gradient(self.sum_prev_goals), FLAGS.goal_embedding_size,
                                                               biases_initializer=None, scope="goal_emb")
 
-            self.w_policy = tf.squeeze(tf.matmul(Ut, tf.expand_dims(goal_encoding, 2)), 2)
-            self.w_policy = tf.contrib.layers.flatten(self.w_policy)
-            self.w_policy = tf.nn.softmax(self.w_policy, name="W_Policy")
+            interm_rez = tf.squeeze(tf.matmul(Ut, tf.expand_dims(goal_encoding, 2)), 2)
+            interm_rez = tf.contrib.layers.flatten(interm_rez)
+            self.w_policy = tf.nn.softmax(interm_rez, name="W_Policy")
 
             summary_w_policy_act = tf.contrib.layers.summarize_activation(self.w_policy)
 
-            w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size + FLAGS.goal_embedding_size, 1],
-                                           initializer=normalized_columns_initializer(1.0))
-            self.w_value = tf.matmul(tf.concat([Ut_flat, goal_encoding], 1), w_fc_value_w, name="W_Value")
+            # w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size + FLAGS.goal_embedding_size, 1],
+            #                                initializer=normalized_columns_initializer(1.0))
+            # self.w_value = tf.matmul(tf.concat([Ut_flat, goal_encoding], 1), w_fc_value_w, name="W_Value")
+            w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[
+                FLAGS.nb_actions , 1],
+                                          initializer=normalized_columns_initializer(1.0))
+            self.w_value = tf.matmul(interm_rez, w_fc_value_w, name="W_Value")
 
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
