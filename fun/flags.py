@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_float('initial_random_goal_prob', 0.1, """initial_random_goa
 tf.app.flags.DEFINE_float('final_random_goal_prob', 0, """final_random_goal_prob""")
 tf.app.flags.DEFINE_float('w_gamma', 0.95, """Gamma value""")
 tf.app.flags.DEFINE_float('m_gamma', 0.95, """Gamma value""")
-tf.app.flags.DEFINE_float('lr', 1e-4, """Learning rate""")
+tf.app.flags.DEFINE_float('lr', 1e-5, """Learning rate""")
 tf.app.flags.DEFINE_float('w_beta_v', 0.5, """Coefficient of value function loss""")
 tf.app.flags.DEFINE_float('m_beta_v', 0.5, """Coefficient of value function loss""")
 tf.app.flags.DEFINE_float('beta_e', 1e-4, """Coefficient of entropy loss""")

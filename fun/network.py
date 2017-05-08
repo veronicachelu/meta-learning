@@ -40,7 +40,7 @@ class FUNNetwork():
             with tf.variable_scope('inputs'):
                 tf.get_variable_scope().reuse_variables()
                 self.image_summaries.append(
-                    tf.summary.image('input', self.inputs, max_outputs=1))
+                    tf.summary.image('input', self.inputs))
 
             self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), FLAGS.hidden_dim)
             self.f_percept = tf.nn.elu(self.fc, name="Zt")
