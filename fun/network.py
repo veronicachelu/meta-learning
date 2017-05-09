@@ -216,7 +216,7 @@ class FUNNetwork():
 
                 self.responsible_outputs = tf.reduce_sum(self.w_policy * self.actions_onehot, [1])
 
-                self.intr_rewards = tf.concat([self.intr_rewards, tf.constant(0.0)], axis=0)
+                self.intr_rewards = tf.concat([self.intr_rewards, tf.constant(0.0, shape=(1,))], axis=0)
                 self.discounted_intrinsic_rewards = tf.scan(
                     lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, tf.reverse(self.intr_rewards, [0]),
                     name="discounted_intr_rewards")
