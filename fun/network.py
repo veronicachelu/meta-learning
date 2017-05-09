@@ -43,6 +43,7 @@ class FUNNetwork():
                     tf.summary.image('input', self.inputs))
 
             self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), FLAGS.hidden_dim)
+            self.fc = tf.contrib.layers.layer_norm(self.fc)
             self.f_percept = tf.nn.elu(self.fc, name="Zt")
 
             self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot], 1,
@@ -54,6 +55,7 @@ class FUNNetwork():
             # Manager network
 
             self.f_Mspace = tf.contrib.layers.fully_connected(self.f_percept, FLAGS.hidden_dim)
+            self.f_Mspace = tf.contrib.layers.layer_norm(self.f_Mspace)
             self.f_Mspace = tf.nn.elu(self.f_Mspace, name="St")
             summary_f_Mspace_act = tf.contrib.layers.summarize_activation(self.f_Mspace)
 
@@ -98,7 +100,7 @@ class FUNNetwork():
             self.decrease_prob_of_random_goal = tf.assign_sub(self.prob_of_random_goal, tf.constant(
                 (FLAGS.initial_random_goal_prob - FLAGS.final_random_goal_prob) / FLAGS.explore_steps))
 
-            m_fc_value_w = tf.get_variable("M_FC_Value_W", shape=[FLAGS.hidden_dim, 1],
+            m_fc_value_w = tf.get_variable("M_Value_W", shape=[FLAGS.hidden_dim, 1],
                                            initializer=normalized_columns_initializer(1.0))
             self.m_value = tf.matmul(m_rnn_out, m_fc_value_w, name="M_Value")
 
@@ -152,13 +154,13 @@ class FUNNetwork():
 
             summary_w_policy_act = tf.contrib.layers.summarize_activation(self.w_policy)
 
-            # w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size + FLAGS.goal_embedding_size, 1],
-            #                                initializer=normalized_columns_initializer(1.0))
-            # self.w_value = tf.matmul(tf.concat([Ut_flat, goal_encoding], 1), w_fc_value_w, name="W_Value")
-            w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[
-                FLAGS.nb_actions , 1],
-                                          initializer=normalized_columns_initializer(1.0))
-            self.w_value = tf.matmul(interm_rez, w_fc_value_w, name="W_Value")
+            w_fc_value_w = tf.get_variable("W_Value_W", shape=[FLAGS.nb_actions * FLAGS.goal_embedding_size + FLAGS.goal_embedding_size, 1],
+                                           initializer=normalized_columns_initializer(1.0))
+            self.w_value = tf.matmul(tf.concat([Ut_flat, goal_encoding], 1), w_fc_value_w, name="W_Value")
+            # w_fc_value_w = tf.get_variable("W_FC_Value_W", shape=[
+            #     FLAGS.nb_actions , 1],
+            #                               initializer=normalized_columns_initializer(1.0))
+            # self.w_value = tf.matmul(interm_rez, w_fc_value_w, name="W_Value")
 
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
