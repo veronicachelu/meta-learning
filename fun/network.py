@@ -62,17 +62,17 @@ class FUNNetwork():
             m_rnn_in = tf.expand_dims(self.f_Mspace, [0], name="Mrnn_in")
             step_size = tf.shape(self.inputs)[:1]
 
-            m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(FLAGS.hidden_dim)
-            m_c_init = np.zeros((1, m_lstm_cell.state_size.c), np.float32)
-            m_h_init = np.zeros((1, m_lstm_cell.state_size.h), np.float32)
+            m_lstm_cell = tf.contrib.rnn.BasicLSTMCell(FLAGS.hidden_dim)
+            m_c_init = np.zeros((1, FLAGS.hidden_dim * FLAGS.manager_horizon), np.float32)
+            m_h_init = np.zeros((1, FLAGS.hidden_dim * FLAGS.manager_horizon), np.float32)
             self.m_state_init = [m_c_init, m_h_init]
-            m_c_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.c], name="Mrnn_c_in")
-            m_h_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.h], name="Mrnn_h_in")
+            m_c_in = tf.placeholder(tf.float32, [1, FLAGS.hidden_dim * FLAGS.manager_horizon], name="Mrnn_c_in")
+            m_h_in = tf.placeholder(tf.float32, [1, FLAGS.hidden_dim * FLAGS.manager_horizon], name="Mrnn_h_in")
             self.m_state_in = (m_c_in, m_h_in)
             m_state_in = tf.contrib.rnn.LSTMStateTuple(m_c_in, m_h_in)
 
             m_lstm_outputs, m_lstm_state = self.fast_dlstm(m_rnn_in, m_state_in, m_lstm_cell, FLAGS.manager_horizon,
-                                                           FLAGS.hidden_dim)
+                                                           FLAGS.hidden_dim * FLAGS.manager_horizon)
 
             m_lstm_c, m_lstm_h = m_lstm_state
             self.m_state_out = (m_lstm_c[-1, :1, :], m_lstm_h[-1, :1, :])
@@ -123,7 +123,7 @@ class FUNNetwork():
 
             w_rnn_in = tf.expand_dims(self.f_percept, [0], name="Wrnn_in")
             step_size = tf.shape(self.inputs)[:1]
-            w_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(FLAGS.goal_embedding_size * FLAGS.nb_actions)
+            w_lstm_cell = tf.contrib.rnn.BasicLSTMCell(FLAGS.goal_embedding_size * FLAGS.nb_actions)
             w_c_init = np.zeros((1, w_lstm_cell.state_size.c), np.float32)
             w_h_init = np.zeros((1, w_lstm_cell.state_size.h), np.float32)
             self.w_state_init = [w_c_init, w_h_init]
@@ -266,45 +266,95 @@ class FUNNetwork():
     #     #             lambda: tf.zeros_like(tensor))
     #     y = t + tf.stop_gradient(tensor - t)
     #     return y
-    def conditional_backprop(self, do_backprop, tensor, previous_tensor):
-        t = tf.cond(tf.cast(do_backprop, tf.bool),
-                    lambda: tf.identity(tensor),
-                    lambda: tf.identity(previous_tensor))
+    # def conditional_backprop(self, do_backprop, tensor, previous_tensor):
+    #     t = tf.cond(tf.cast(do_backprop, tf.bool),
+    #                 lambda: tf.identity(tensor),
+    #                 lambda: tf.identity(previous_tensor))
+    #
+    #     return t
+    def conditional_sub_state(self, is_this_current_step, tensor, previous_tensor):
+        t = tf.cond(tf.cast(is_this_current_step, tf.bool),
+                    lambda: tensor,
+                    lambda: previous_tensor)
 
         return t
 
     def fast_dlstm(self, s_t, state_in, lstm, chunks, h_size):
-        def dilate_one_time_step(one_h, previous_one_h, switcher, num_chunks):
-            h_slices = []
-
-            chunk_step_size = h_size // num_chunks
-            for switch_step, h_step in zip(range(num_chunks), range(0, h_size, chunk_step_size)):
-                one_switch = switcher[switch_step]
-                h_s = self.conditional_backprop(one_switch, one_h[h_step: h_step + chunk_step_size],
-                                                previous_one_h[h_step: h_step + chunk_step_size])
-                h_slices.append(h_s)
-            dh = tf.stack(h_slices)
-            dh = tf.reshape(dh, [-1, h_size])
-            return dh
+        # def dilate_one_time_step(one_h, previous_one_h, switcher, num_chunks):
+        #     h_slices = []
+        #
+        #     chunk_step_size = h_size // num_chunks
+        #     for switch_step, h_step in zip(range(num_chunks), range(0, h_size, chunk_step_size)):
+        #         one_switch = switcher[switch_step]
+        #         h_s = self.conditional_backprop(one_switch, one_h[h_step: h_step + chunk_step_size],
+        #                                         previous_one_h[h_step: h_step + chunk_step_size])
+        #         h_slices.append(h_s)
+        #     dh = tf.stack(h_slices)
+        #     dh = tf.reshape(dh, [-1, h_size])
+        #     return dh
 
         # lstm = tf.tensorflow.contrib.rnn.LSTMCell(256, state_is_tuple=True)
         # chunks = 8
 
-        def dlstm_scan_fn(previous_output, current_input):
-            out, state_out = lstm(current_input, previous_output[1])
-            i = previous_output[2]
-            basis_i = tf.one_hot(i, depth=chunks)
-            state_out_dilated = dilate_one_time_step(tf.squeeze(state_out[0]), tf.squeeze(previous_output[1][0]),
-                                                     basis_i, chunks)
-            state_out = tf.contrib.rnn.LSTMStateTuple(state_out_dilated, state_out[1])
-            i += tf.constant(1)
-            new_i = tf.mod(i, chunks)
-            return out, state_out, new_i
+        def get_sub_state(state, state_step):
+            c, h = state
+            chunk_step_size = h_size // chunks
+            h_step = state_step * chunk_step_size
+            sub_state_h = h[:, h_step: h_step + chunk_step_size]
+            sub_state_c = c[:, h_step: h_step + chunk_step_size]
+            sub_state_h.set_shape([1, chunk_step_size])
+            sub_state_c.set_shape([1, chunk_step_size])
+            sub_state = tf.contrib.rnn.LSTMStateTuple(sub_state_c, sub_state_h)
+            return sub_state
 
+        def build_new_state(new_sub_state, previous_state, state_step):
+            c_previous_state, h_previous_state = previous_state
+            c_new_sub_state, h_new_sub_state = new_sub_state
+            h_slices = []
+            c_slices = []
+            chunk_step_size = h_size // chunks
+            one_hot_state_step = tf.one_hot(state_step, depth=chunks)
+
+            for switch_step, h_step in zip(range(chunks), range(0, h_size, chunk_step_size)):
+                is_this_current_step = one_hot_state_step[switch_step]
+                h_s = self.conditional_sub_state(is_this_current_step, h_new_sub_state[:, h_step: h_step + chunk_step_size],
+                                                 h_previous_state[:, h_step: h_step + chunk_step_size])
+                h_s.set_shape([1, chunk_step_size])
+                c_s = self.conditional_sub_state(is_this_current_step,
+                                                 c_new_sub_state[:, h_step: h_step + chunk_step_size],
+                                                 c_previous_state[:, h_step: h_step + chunk_step_size])
+                c_s.set_shape([1, chunk_step_size])
+                h_slices.append(h_s)
+                c_slices.append(c_s)
+            h_new_state = tf.concat(h_slices, axis=1)
+            c_new_state = tf.concat(c_slices, axis=1)
+            new_state = tf.contrib.rnn.LSTMStateTuple(c_new_state, h_new_state)
+            return new_state
+
+        def dlstm_scan_fn(previous_output, current_input):
+            # out, state_out = lstm(current_input, previous_output[1])
+            state_step = previous_output[2]
+
+            sub_state = get_sub_state(previous_output[1], state_step)
+            out, sub_state_out = lstm(current_input, sub_state)
+            state_out = build_new_state(sub_state_out, previous_output[1], state_step)
+            state_step += tf.constant(1)
+            new_state_step = tf.mod(state_step, chunks)
+
+
+            # state_out_dilated = dilate_one_time_step(tf.squeeze(state_out[0]), tf.squeeze(previous_output[1][0]),
+            #                                          basis_i, chunks)
+            # state_out = tf.contrib.rnn.LSTMStateTuple(state_out_dilated, state_out[1])
+            # i += tf.constant(1)
+            # new_i = tf.mod(i, chunks)
+            return out, state_out, new_state_step
+
+        chunk_step_size = h_size // chunks
+        first_input = state_in.c[:, 0: chunk_step_size]
         rnn_outputs, final_states, mod_idxs = tf.scan(dlstm_scan_fn,
                                                       tf.transpose(s_t, [1, 0, 2]),
                                                       initializer=(
-                                                          state_in.c, state_in, tf.constant(0)), name="dlstm")
+                                                          first_input, state_in, tf.constant(0)), name="dlstm")
 
         # state_out = [final_states[0][-1, :1, :], final_states[1][-1, :1, :]]
         # cell_states = final_states[0][:, 0, :]
