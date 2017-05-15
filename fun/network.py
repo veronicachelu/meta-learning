@@ -62,7 +62,7 @@ class FUNNetwork():
             m_rnn_in = tf.expand_dims(self.f_Mspace, [0], name="Mrnn_in")
             step_size = tf.shape(self.inputs)[:1]
 
-            m_lstm_cell = tf.contrib.rnn.BasicLSTMCell(FLAGS.hidden_dim)
+            m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(FLAGS.hidden_dim)
             m_c_init = np.zeros((1, FLAGS.hidden_dim * FLAGS.manager_horizon), np.float32)
             m_h_init = np.zeros((1, FLAGS.hidden_dim * FLAGS.manager_horizon), np.float32)
             self.m_state_init = [m_c_init, m_h_init]
@@ -123,7 +123,7 @@ class FUNNetwork():
 
             w_rnn_in = tf.expand_dims(self.f_percept, [0], name="Wrnn_in")
             step_size = tf.shape(self.inputs)[:1]
-            w_lstm_cell = tf.contrib.rnn.BasicLSTMCell(FLAGS.goal_embedding_size * FLAGS.nb_actions)
+            w_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(FLAGS.goal_embedding_size * FLAGS.nb_actions)
             w_c_init = np.zeros((1, w_lstm_cell.state_size.c), np.float32)
             w_h_init = np.zeros((1, w_lstm_cell.state_size.h), np.float32)
             self.w_state_init = [w_c_init, w_h_init]
@@ -317,11 +317,11 @@ class FUNNetwork():
 
             for switch_step, h_step in zip(range(chunks), range(0, h_size, chunk_step_size)):
                 is_this_current_step = one_hot_state_step[switch_step]
-                h_s = self.conditional_sub_state(is_this_current_step, h_new_sub_state[:, h_step: h_step + chunk_step_size],
+                h_s = self.conditional_sub_state(is_this_current_step, h_new_sub_state,
                                                  h_previous_state[:, h_step: h_step + chunk_step_size])
                 h_s.set_shape([1, chunk_step_size])
                 c_s = self.conditional_sub_state(is_this_current_step,
-                                                 c_new_sub_state[:, h_step: h_step + chunk_step_size],
+                                                 c_new_sub_state,
                                                  c_previous_state[:, h_step: h_step + chunk_step_size])
                 c_s.set_shape([1, chunk_step_size])
                 h_slices.append(h_s)
