@@ -98,7 +98,8 @@ class Agent():
                 if FLAGS.train and episode_count > FLAGS.max_nb_episodes_train:
                     return 0
 
-                sess.run([self.update_local_vars, self.local_AC.decrease_prob_of_random_goal])
+                sess.run(self.update_local_vars)
+                sess.run(self.local_AC.decrease_prob_of_random_goal)
 
                 episode_buffer = []
 

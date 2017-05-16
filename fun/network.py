@@ -86,11 +86,15 @@ class FUNNetwork():
 
             def randomize_goals(t):
                 t = tf.cast(t, tf.int32)
+                packed_tensors = tf.stack([tf.random_normal([FLAGS.hidden_dim, ]), self.normalized_goals[t, :]])
+
                 to_update = tf.cond(
                     tf.less(self.prob_of_random_goal, tf.constant(FLAGS.final_random_goal_prob, dtype=tf.float32)),
-                    lambda: tf.random_normal([FLAGS.hidden_dim, ]), lambda: self.normalized_goals[t, :])
+                    lambda: tf.cast(tf.multinomial(tf.log([[self.prob_of_random_goal, 1 - self.prob_of_random_goal]]), 1)[0][0], tf.int32), lambda: tf.constant(1, tf.int32))
 
-                return to_update
+                resulted_tensor = tf.gather(packed_tensors, to_update)
+
+                return resulted_tensor
 
             self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])),
                                               name="random_gt")
