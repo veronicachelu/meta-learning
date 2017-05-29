@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v2',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
-tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
+tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
@@ -29,13 +29,13 @@ tf.app.flags.DEFINE_integer('checkpoint_interval', 1000, """Number of episodes o
 tf.app.flags.DEFINE_integer('nb_actions', 4, """Number of actions to take""")
 tf.app.flags.DEFINE_integer('nb_concurrent', 4, """Number of concurrent threads""")
 tf.app.flags.DEFINE_integer('explore_steps', 90000, """explore_steps""")
-tf.app.flags.DEFINE_float('initial_random_goal_prob', 0.2, """initial_random_goal_prob""")
+tf.app.flags.DEFINE_float('initial_random_goal_prob', 0.1, """initial_random_goal_prob""")
 tf.app.flags.DEFINE_float('final_random_goal_prob', 0, """final_random_goal_prob""")
 tf.app.flags.DEFINE_float('w_gamma', 0.99, """Gamma value""")
 tf.app.flags.DEFINE_float('m_gamma', 0.99, """Gamma value""")
 tf.app.flags.DEFINE_float('lr', 1e-4, """Learning rate""")
-tf.app.flags.DEFINE_float('w_beta_v', 0.25, """Coefficient of value function loss""")
-tf.app.flags.DEFINE_float('m_beta_v', 0.25, """Coefficient of value function loss""")
+tf.app.flags.DEFINE_float('w_beta_v', 0.5, """Coefficient of value function loss""")
+tf.app.flags.DEFINE_float('m_beta_v', 0.5, """Coefficient of value function loss""")
 tf.app.flags.DEFINE_float('beta_e', 1e-4, """Coefficient of entropy loss""")
 tf.app.flags.DEFINE_integer('max_nb_episodes_train', 90000, """Max number of episodes of training time""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")

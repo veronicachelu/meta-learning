@@ -24,6 +24,9 @@ class FUNNetwork():
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
+
+            self.prev_goal = tf.placeholder(shape=[None, FLAGS.hidden_dim], dtype=tf.float32, name="Prev_Goals")
+
             self.image_summaries = []
             if FLAGS.game_size > 5:
                 self.conv = tf.contrib.layers.conv2d(
@@ -42,11 +45,12 @@ class FUNNetwork():
                 self.image_summaries.append(
                     tf.summary.image('input', self.inputs, max_outputs=100))
 
-            self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), FLAGS.hidden_dim)
+            self.conv_flat = tf.contrib.layers.flatten(self.conv)
+            self.fc = tf.contrib.layers.fully_connected(self.conv_flat, FLAGS.hidden_dim)
             self.fc = tf.contrib.layers.layer_norm(self.fc)
             self.f_percept = tf.nn.elu(self.fc, name="Zt")
 
-            self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot], 1,
+            self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot, self.prev_actions_onehot, self.prev_goal], 1,
                                        name="Zt_r")
 
             summary_f_percept_act = tf.contrib.layers.summarize_activation(self.f_percept)
@@ -115,11 +119,11 @@ class FUNNetwork():
 
             summary_m_value_act = tf.contrib.layers.summarize_activation(self.m_value)
 
-            def gather_horiz(t):
-                t = tf.cast(t, tf.int32)
-                indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), t + 1)
-
-                return tf.reduce_sum(tf.gather(tf.stop_gradient(self.randomized_goals), indices), axis=0)
+            # def gather_horiz(t):
+            #     t = tf.cast(t, tf.int32)
+            #     indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), t + 1)
+            #
+            #     return tf.reduce_sum(tf.gather(tf.stop_gradient(self.randomized_goals), indices), axis=0)
 
             # with tf.control_dependencies([decrease_prob_of_random_goal]):
             # prev_goals_init = np.zeros((FLAGS.manager_horizon, FLAGS.hidden_dim), np.float32)
@@ -221,7 +225,7 @@ class FUNNetwork():
                                                                dim=1)
 
                 self.m_advantages = self.m_extrinsic_return - tf.stop_gradient(tf.reshape(self.m_value, [-1]))
-                self.goals_loss = tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
+                self.goals_loss = - tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
                 self.m_value_loss = FLAGS.m_beta_v * tf.reduce_sum(
                     tf.square(self.m_extrinsic_return - tf.reshape(self.m_value, [-1])))
 
