@@ -135,7 +135,6 @@ class Agent():
                     feed_dict_m = {
                         self.local_AC.inputs: [s],
                         self.local_AC.prev_rewards: [r],
-                        self.local_AC.prev_actions: [a],
                         self.local_AC.prev_goal: [prev_goal],
                         self.local_AC.m_state_in[0]: m_rnn_state[0],
                         self.local_AC.m_state_in[1]: m_rnn_state[1]
@@ -185,7 +184,6 @@ class Agent():
                         self.local_AC.inputs: [s],
                         self.local_AC.prev_rewards: [r],
                         self.local_AC.prev_actions: [a],
-                        self.local_AC.prev_goal: [prev_goal],
                         self.local_AC.sum_prev_goals: [sum_of_prev_goals],
                         self.local_AC.w_state_in[0]: w_rnn_state[0],
                         self.local_AC.w_state_in[1]: w_rnn_state[1],

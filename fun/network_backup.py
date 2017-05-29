@@ -24,9 +24,6 @@ class FUNNetwork():
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
-
-            self.prev_goal = tf.placeholder(shape=[None, FLAGS.hidden_dim], dtype=tf.float32, name="Prev_Goals")
-
             self.image_summaries = []
             if FLAGS.game_size > 5:
                 self.conv = tf.contrib.layers.conv2d(
@@ -45,29 +42,19 @@ class FUNNetwork():
                 self.image_summaries.append(
                     tf.summary.image('input', self.inputs, max_outputs=100))
 
-            self.conv_flat = tf.contrib.layers.flatten(self.conv)
-            self.fc = tf.contrib.layers.fully_connected(self.conv_flat, FLAGS.hidden_dim)
+            self.fc = tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(self.conv), FLAGS.hidden_dim)
             self.fc = tf.contrib.layers.layer_norm(self.fc)
             self.f_percept = tf.nn.elu(self.fc, name="Zt")
 
-            self.f_percept = tf.concat(
-                [self.f_percept, self.prev_rewards_onehot], 1,
-                name="Zt_r")
+            self.f_percept = tf.concat([self.f_percept, self.prev_rewards_onehot], 1,
+                                       name="Zt_r")
 
             summary_f_percept_act = tf.contrib.layers.summarize_activation(self.f_percept)
 
             ############################################################################################################
             # Manager network
 
-            self.f_Mspace = tf.concat(
-                [self.f_percept, self.prev_goal], 1,
-                name="Zt_r")
-            self.f_Mspace = tf.contrib.layers.fully_connected(self.f_Mspace, FLAGS.hidden_dim)
-
-            self.f_percept = tf.concat(
-                [self.f_percept, self.prev_actions_onehot], 1,
-                name="Zt_r")
-
+            self.f_Mspace = tf.contrib.layers.fully_connected(self.f_percept, FLAGS.hidden_dim)
             self.f_Mspace = tf.contrib.layers.layer_norm(self.f_Mspace)
             self.f_Mspace = tf.nn.elu(self.f_Mspace, name="St")
             summary_f_Mspace_act = tf.contrib.layers.summarize_activation(self.f_Mspace)
@@ -76,16 +63,16 @@ class FUNNetwork():
             step_size = tf.shape(self.inputs)[:1]
 
             m_lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(FLAGS.hidden_dim)
-            m_c_init = np.zeros((1, FLAGS.hidden_dim * FLAGS.manager_horizon), np.float32)
-            m_h_init = np.zeros((1, FLAGS.hidden_dim * FLAGS.manager_horizon), np.float32)
+            m_c_init = np.zeros((1, m_lstm_cell.state_size.c), np.float32)
+            m_h_init = np.zeros((1, m_lstm_cell.state_size.h), np.float32)
             self.m_state_init = [m_c_init, m_h_init]
-            m_c_in = tf.placeholder(tf.float32, [1, FLAGS.hidden_dim * FLAGS.manager_horizon], name="Mrnn_c_in")
-            m_h_in = tf.placeholder(tf.float32, [1, FLAGS.hidden_dim * FLAGS.manager_horizon], name="Mrnn_h_in")
+            m_c_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.c], name="Mrnn_c_in")
+            m_h_in = tf.placeholder(tf.float32, [1, m_lstm_cell.state_size.h], name="Mrnn_h_in")
             self.m_state_in = (m_c_in, m_h_in)
             m_state_in = tf.contrib.rnn.LSTMStateTuple(m_c_in, m_h_in)
 
             m_lstm_outputs, m_lstm_state = self.fast_dlstm(m_rnn_in, m_state_in, m_lstm_cell, FLAGS.manager_horizon,
-                                                           FLAGS.hidden_dim * FLAGS.manager_horizon)
+                                                           FLAGS.hidden_dim)
 
             m_lstm_c, m_lstm_h = m_lstm_state
             self.m_state_out = (m_lstm_c[-1, :1, :], m_lstm_h[-1, :1, :])
@@ -99,20 +86,11 @@ class FUNNetwork():
 
             def randomize_goals(t):
                 t = tf.cast(t, tf.int32)
-                packed_tensors = tf.stack([tf.random_normal([FLAGS.hidden_dim, ]), self.normalized_goals[t, :]])
-
                 to_update = tf.cond(
                     tf.less(self.prob_of_random_goal, tf.constant(FLAGS.final_random_goal_prob, dtype=tf.float32)),
-                    lambda: tf.cast(
-                        tf.multinomial(
-                            tf.log([[self.prob_of_random_goal,
-                                     tf.subtract(tf.constant(1.0),
-                                                 self.prob_of_random_goal)]]), 1)[0][0], tf.int32),
-                    lambda: tf.constant(1, tf.int32))
+                    lambda: tf.random_normal([FLAGS.hidden_dim, ]), lambda: self.normalized_goals[t, :])
 
-                resulted_tensor = tf.gather(packed_tensors, to_update)
-
-                return resulted_tensor
+                return to_update
 
             self.randomized_goals = tf.map_fn(lambda t: randomize_goals(t), tf.to_float(tf.range(0, step_size[0])),
                                               name="random_gt")
@@ -128,25 +106,20 @@ class FUNNetwork():
 
             summary_m_value_act = tf.contrib.layers.summarize_activation(self.m_value)
 
-            # def gather_horiz(t):
-            #     t = tf.cast(t, tf.int32)
-            #     indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), t + 1)
-            #
-            #     return tf.reduce_sum(tf.gather(tf.stop_gradient(self.randomized_goals), indices), axis=0)
+            def gather_horiz(t):
+                t = tf.cast(t, tf.int32)
+                indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), t + 1)
+
+                return tf.reduce_sum(tf.gather(tf.stop_gradient(self.randomized_goals), indices), axis=0)
 
             # with tf.control_dependencies([decrease_prob_of_random_goal]):
-            # prev_goals_init = np.zeros((FLAGS.manager_horizon, FLAGS.hidden_dim), np.float32)
-            # self.sum_prev_goals = tf.placeholder(tf.float32, [None, FLAGS.hidden_dim], name="sum_prev_goals")
-
-            # self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])),
-            #                                 name="sum_prev_goals")
+            self.sum_prev_goals = tf.map_fn(lambda t: gather_horiz(t), tf.to_float(tf.range(0, step_size[0])),
+                                            name="sum_prev_goals")
 
             ############################################################################################################
 
             # Worker network
-
-
-            self.sum_prev_goals = tf.placeholder(shape=[None, FLAGS.hidden_dim], dtype=tf.float32, name="Prev_c_Goals_sum")
+            # self.sum_prev_goals = tf.placeholder(shape=[None, FLAGS.hidden_dim], dtype=tf.int32, name="Prev_c_Goals_sum")
 
             w_rnn_in = tf.expand_dims(self.f_percept, [0], name="Wrnn_in")
             step_size = tf.shape(self.inputs)[:1]
@@ -172,7 +145,7 @@ class FUNNetwork():
 
             summary_wrnn_act = tf.contrib.layers.summarize_activation(Ut)
 
-            goal_encoding = tf.contrib.layers.fully_connected(self.sum_prev_goals, FLAGS.goal_embedding_size,
+            goal_encoding = tf.contrib.layers.fully_connected(tf.stop_gradient(self.sum_prev_goals), FLAGS.goal_embedding_size,
                                                               biases_initializer=None, scope="goal_emb")
 
             interm_rez = tf.squeeze(tf.matmul(Ut, tf.expand_dims(goal_encoding, 2)), 2)
@@ -192,34 +165,31 @@ class FUNNetwork():
             summary_w_value_act = tf.contrib.layers.summarize_activation(self.w_value)
 
             if scope != 'global':
-                # def calculate_intrinsic_reward(t):
-                #     indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t, 0))
-                #     original_state = tf.map_fn(lambda i: self.f_Mspace[t, :], tf.to_float(indices))
-                #     goals = tf.gather(self.randomized_goals, indices)
-                #     state_diff = original_state - tf.gather(self.f_Mspace, indices)
-                #     intrinsic_reward = tf.cast((1 / tf.shape(state_diff)[0]), tf.float32) * tf.reduce_sum(
-                #         self.cosine_distance(state_diff, goals, dim=1))
-                #
-                #     return intrinsic_reward
-                #
-                # def gather_intrinsic_rewards(t):
-                #     t = tf.cast(t, tf.int32)
-                #
-                #     intrinsic_reward = tf.cond(tf.cast(tf.equal(t, tf.constant(0)), tf.bool),
-                #                                lambda: tf.constant(0.0),
-                #                                lambda: calculate_intrinsic_reward(t))
-                #
-                #     return intrinsic_reward
-                #
-                # self.intr_rewards = tf.cast(
-                #     tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.to_float(tf.range(0, step_size[0])),
-                #               name="intrinsic_rewards"), dtype=tf.float32)
+                def calculate_intrinsic_reward(t):
+                    indices = tf.range(tf.maximum(t - tf.constant(FLAGS.manager_horizon), 0), tf.maximum(t, 0))
+                    original_state = tf.map_fn(lambda i: self.f_Mspace[t, :], tf.to_float(indices))
+                    goals = tf.gather(self.randomized_goals, indices)
+                    state_diff = original_state - tf.gather(self.f_Mspace, indices)
+                    intrinsic_reward = tf.cast((1 / tf.shape(state_diff)[0]), tf.float32) * tf.reduce_sum(
+                        self.cosine_distance(state_diff, goals, dim=1))
 
-                # self.intr_rewards = tf.placeholder(shape=[None], dtype=tf.float32)
+                    return intrinsic_reward
+
+                def gather_intrinsic_rewards(t):
+                    t = tf.cast(t, tf.int32)
+
+                    intrinsic_reward = tf.cond(tf.cast(tf.equal(t, tf.constant(0)), tf.bool),
+                                               lambda: tf.constant(0.0),
+                                               lambda: calculate_intrinsic_reward(t))
+
+                    return intrinsic_reward
+
+                self.intr_rewards = tf.cast(
+                    tf.map_fn(lambda t: gather_intrinsic_rewards(t), tf.to_float(tf.range(0, step_size[0])),
+                              name="intrinsic_rewards"), dtype=tf.float32)
 
                 self.w_extrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
                 self.m_extrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
-                self.w_intrinsic_return = tf.placeholder(shape=[None], dtype=tf.float32)
 
                 def gather_state_at_horiz(t):
                     t = tf.cast(t, tf.int32)
@@ -236,7 +206,7 @@ class FUNNetwork():
                                                                dim=1)
 
                 self.m_advantages = self.m_extrinsic_return - tf.stop_gradient(tf.reshape(self.m_value, [-1]))
-                self.goals_loss = - tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
+                self.goals_loss = tf.reduce_sum(self.m_advantages * self.cos_sim_state_diff)
                 self.m_value_loss = FLAGS.m_beta_v * tf.reduce_sum(
                     tf.square(self.m_extrinsic_return - tf.reshape(self.m_value, [-1])))
 
@@ -246,13 +216,13 @@ class FUNNetwork():
 
                 self.responsible_outputs = tf.reduce_sum(self.w_policy * self.actions_onehot, [1])
 
-                # self.intr_rewards = tf.concat([self.intr_rewards, tf.constant(0.0, shape=(1,))], axis=0)
-                # self.discounted_intrinsic_rewards = tf.scan(
-                #     lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, tf.reverse(self.intr_rewards, [0]),
-                #     name="discounted_intr_rewards")
-                # self.discounted_intrinsic_rewards = tf.reverse(self.discounted_intrinsic_rewards, [0])[:-1]
-                self.intrinsic_return = FLAGS.alpha * self.w_intrinsic_return
-                self.total_return = self.w_extrinsic_return + self.intrinsic_return
+                self.intr_rewards = tf.concat([self.intr_rewards, tf.constant(0.0, shape=(1,))], axis=0)
+                self.discounted_intrinsic_rewards = tf.scan(
+                    lambda a, x: tf.constant(FLAGS.w_gamma, dtype=tf.float32) * a + x, tf.reverse(self.intr_rewards, [0]),
+                    name="discounted_intr_rewards")
+                self.discounted_intrinsic_rewards = tf.reverse(self.discounted_intrinsic_rewards, [0])[:-1]
+                self.intrinsic_return = FLAGS.alpha * self.discounted_intrinsic_rewards
+                self.total_return = self.w_extrinsic_return + tf.stop_gradient(self.intrinsic_return)
                 self.w_advantages = self.total_return - tf.stop_gradient(tf.reshape(self.w_value, [-1]))
 
                 # Loss functions
@@ -296,95 +266,45 @@ class FUNNetwork():
     #     #             lambda: tf.zeros_like(tensor))
     #     y = t + tf.stop_gradient(tensor - t)
     #     return y
-    # def conditional_backprop(self, do_backprop, tensor, previous_tensor):
-    #     t = tf.cond(tf.cast(do_backprop, tf.bool),
-    #                 lambda: tf.identity(tensor),
-    #                 lambda: tf.identity(previous_tensor))
-    #
-    #     return t
-    def conditional_sub_state(self, is_this_current_step, tensor, previous_tensor):
-        t = tf.cond(tf.cast(is_this_current_step, tf.bool),
-                    lambda: tensor,
-                    lambda: previous_tensor)
+    def conditional_backprop(self, do_backprop, tensor, previous_tensor):
+        t = tf.cond(tf.cast(do_backprop, tf.bool),
+                    lambda: tf.identity(tensor),
+                    lambda: tf.identity(previous_tensor))
 
         return t
 
     def fast_dlstm(self, s_t, state_in, lstm, chunks, h_size):
-        # def dilate_one_time_step(one_h, previous_one_h, switcher, num_chunks):
-        #     h_slices = []
-        #
-        #     chunk_step_size = h_size // num_chunks
-        #     for switch_step, h_step in zip(range(num_chunks), range(0, h_size, chunk_step_size)):
-        #         one_switch = switcher[switch_step]
-        #         h_s = self.conditional_backprop(one_switch, one_h[h_step: h_step + chunk_step_size],
-        #                                         previous_one_h[h_step: h_step + chunk_step_size])
-        #         h_slices.append(h_s)
-        #     dh = tf.stack(h_slices)
-        #     dh = tf.reshape(dh, [-1, h_size])
-        #     return dh
+        def dilate_one_time_step(one_h, previous_one_h, switcher, num_chunks):
+            h_slices = []
+
+            chunk_step_size = h_size // num_chunks
+            for switch_step, h_step in zip(range(num_chunks), range(0, h_size, chunk_step_size)):
+                one_switch = switcher[switch_step]
+                h_s = self.conditional_backprop(one_switch, one_h[h_step: h_step + chunk_step_size],
+                                                previous_one_h[h_step: h_step + chunk_step_size])
+                h_slices.append(h_s)
+            dh = tf.stack(h_slices)
+            dh = tf.reshape(dh, [-1, h_size])
+            return dh
 
         # lstm = tf.tensorflow.contrib.rnn.LSTMCell(256, state_is_tuple=True)
         # chunks = 8
 
-        def get_sub_state(state, state_step):
-            c, h = state
-            chunk_step_size = h_size // chunks
-            h_step = state_step * chunk_step_size
-            sub_state_h = h[:, h_step: h_step + chunk_step_size]
-            sub_state_c = c[:, h_step: h_step + chunk_step_size]
-            sub_state_h.set_shape([1, chunk_step_size])
-            sub_state_c.set_shape([1, chunk_step_size])
-            sub_state = tf.contrib.rnn.LSTMStateTuple(sub_state_c, sub_state_h)
-            return sub_state
-
-        def build_new_state(new_sub_state, previous_state, state_step):
-            c_previous_state, h_previous_state = previous_state
-            c_new_sub_state, h_new_sub_state = new_sub_state
-            h_slices = []
-            c_slices = []
-            chunk_step_size = h_size // chunks
-            one_hot_state_step = tf.one_hot(state_step, depth=chunks)
-
-            for switch_step, h_step in zip(range(chunks), range(0, h_size, chunk_step_size)):
-                is_this_current_step = one_hot_state_step[switch_step]
-                h_s = self.conditional_sub_state(is_this_current_step, h_new_sub_state,
-                                                 h_previous_state[:, h_step: h_step + chunk_step_size])
-                h_s.set_shape([1, chunk_step_size])
-                c_s = self.conditional_sub_state(is_this_current_step,
-                                                 c_new_sub_state,
-                                                 c_previous_state[:, h_step: h_step + chunk_step_size])
-                c_s.set_shape([1, chunk_step_size])
-                h_slices.append(h_s)
-                c_slices.append(c_s)
-            h_new_state = tf.concat(h_slices, axis=1)
-            c_new_state = tf.concat(c_slices, axis=1)
-            new_state = tf.contrib.rnn.LSTMStateTuple(c_new_state, h_new_state)
-            return new_state
-
         def dlstm_scan_fn(previous_output, current_input):
-            # out, state_out = lstm(current_input, previous_output[1])
-            state_step = previous_output[2]
+            out, state_out = lstm(current_input, previous_output[1])
+            i = previous_output[2]
+            basis_i = tf.one_hot(i, depth=chunks)
+            state_out_dilated = dilate_one_time_step(tf.squeeze(state_out[0]), tf.squeeze(previous_output[1][0]),
+                                                     basis_i, chunks)
+            state_out = tf.contrib.rnn.LSTMStateTuple(state_out_dilated, state_out[1])
+            i += tf.constant(1)
+            new_i = tf.mod(i, chunks)
+            return out, state_out, new_i
 
-            sub_state = get_sub_state(previous_output[1], state_step)
-            out, sub_state_out = lstm(current_input, sub_state)
-            state_out = build_new_state(sub_state_out, previous_output[1], state_step)
-            state_step += tf.constant(1)
-            new_state_step = tf.mod(state_step, chunks)
-
-
-            # state_out_dilated = dilate_one_time_step(tf.squeeze(state_out[0]), tf.squeeze(previous_output[1][0]),
-            #                                          basis_i, chunks)
-            # state_out = tf.contrib.rnn.LSTMStateTuple(state_out_dilated, state_out[1])
-            # i += tf.constant(1)
-            # new_i = tf.mod(i, chunks)
-            return out, state_out, new_state_step
-
-        chunk_step_size = h_size // chunks
-        first_input = state_in.c[:, 0: chunk_step_size]
         rnn_outputs, final_states, mod_idxs = tf.scan(dlstm_scan_fn,
                                                       tf.transpose(s_t, [1, 0, 2]),
                                                       initializer=(
-                                                          first_input, state_in, tf.constant(0)), name="dlstm")
+                                                          state_in.c, state_in, tf.constant(0)), name="dlstm")
 
         # state_out = [final_states[0][-1, :1, :], final_states[1][-1, :1, :]]
         # cell_states = final_states[0][:, 0, :]
