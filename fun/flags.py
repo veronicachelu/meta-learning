@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
+tf.app.flags.DEFINE_string('game', 'Gridworld-x10-v2',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
-tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
+tf.app.flags.DEFINE_integer('game_size', 10, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
@@ -40,8 +40,8 @@ tf.app.flags.DEFINE_float('beta_e', 1e-4, """Coefficient of entropy loss""")
 tf.app.flags.DEFINE_integer('max_nb_episodes_train', 90000, """Max number of episodes of training time""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
 tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
-tf.app.flags.DEFINE_integer('BTT_length', 100, 'BTT length')
+tf.app.flags.DEFINE_integer('BTT_length', 400, 'BTT length')
 tf.app.flags.DEFINE_integer('hidden_dim', 32, 'the size of all the hidden layers')
-tf.app.flags.DEFINE_integer('manager_horizon', 2, """manager_horizon = r = c""")
+tf.app.flags.DEFINE_integer('manager_horizon', 4, """manager_horizon = r = c""")
 tf.app.flags.DEFINE_integer('goal_embedding_size', 8, """goal_embedding_size""")
 tf.app.flags.DEFINE_integer('alpha', 0.5, """regulates the influence of the intrinsic reward on the workers total reward""")

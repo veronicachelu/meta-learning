@@ -142,7 +142,7 @@ class Agent():
 
                     m_v, m_rnn_state_new, goals, m_s = sess.run(
                         [self.local_AC.m_value, self.local_AC.m_state_out, self.local_AC.randomized_goals, self.local_AC.f_Mspace], feed_dict=feed_dict_m)
-                    prev_goal = goals[0]
+                    # prev_goal = goals[0]
                     episode_goals.append(goals[0])
                     episode_manager_states.append(m_s[0])
 
@@ -178,6 +178,7 @@ class Agent():
                     episode_intr_reward.append(intr_reward)
 
                     sum_of_prev_goals = prev_goals_gather_horiz()
+                    prev_goal = sum_of_prev_goals
                     episode_sum_of_prev_goals.append(sum_of_prev_goals)
 
                     feed_dict_w = {
