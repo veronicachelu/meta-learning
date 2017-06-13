@@ -42,6 +42,6 @@ tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value"""
 tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
 tf.app.flags.DEFINE_integer('BTT_length', 100, 'BTT length')
 tf.app.flags.DEFINE_integer('hidden_dim', 32, 'the size of all the hidden layers')
-tf.app.flags.DEFINE_integer('manager_horizon', 4, """manager_horizon = r = c""")
+tf.app.flags.DEFINE_integer('manager_horizon', 2, """manager_horizon = r = c""")
 tf.app.flags.DEFINE_integer('goal_embedding_size', 8, """goal_embedding_size""")
 tf.app.flags.DEFINE_integer('alpha', 0.5, """regulates the influence of the intrinsic reward on the workers total reward""")
