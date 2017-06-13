@@ -77,10 +77,11 @@ class IntelligentAgent():
 
                 # self.env.render()
 
-                if episode_step_count >= 399:
+                if episode_step_count >= 99:
                      d = True
 
             self.episode_rewards.append(episode_reward)
+            print("Episode reward is {}".format(episode_reward))
 
             if test_episode_count == FLAGS.nb_test_episodes - 1:
                 mean_reward = np.mean(self.episode_rewards)

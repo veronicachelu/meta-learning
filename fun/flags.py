@@ -6,6 +6,7 @@ tf.app.flags.DEFINE_string('game', 'Gridworld-v1',
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
+tf.app.flags.DEFINE_boolean('meta', False, "use meta")
 tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,

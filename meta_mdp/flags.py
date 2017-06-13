@@ -1,9 +1,9 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v1',
                            """Bandit experiment type to be run""")
-tf.app.flags.DEFINE_string('model_name', "MetaGenAdvBeta_OneHotReward_V_0.25_BetaE_0.05", """Name of the model""")
+tf.app.flags.DEFINE_string('model_name', "NonMatching", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
 tf.app.flags.DEFINE_boolean('resume', True,
@@ -36,7 +36,7 @@ tf.app.flags.DEFINE_float('beta_v', 0.5, """Coefficient of value function loss""
 tf.app.flags.DEFINE_float('beta_e', 0.05, """Coefficient of entropy loss""")
 tf.app.flags.DEFINE_integer('max_nb_episodes_train', 90000, """Max number of episodes of training time""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
-tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
+tf.app.flags.DEFINE_integer('nb_test_episodes', 15000000000, """Test episodes""")
 tf.app.flags.DEFINE_boolean('gen_adv', True,
                             """Whether to use generalized advantage estimation""")
 tf.app.flags.DEFINE_boolean('fw', False,

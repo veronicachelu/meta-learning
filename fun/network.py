@@ -59,9 +59,13 @@ class FUNNetwork():
             ############################################################################################################
             # Manager network
 
-            self.f_Mspace = tf.concat(
-                [self.f_percept, self.prev_goal], 1,
-                name="Zt_r")
+            if FLAGS.meta:
+                self.f_Mspace = tf.concat(
+                    [self.f_percept, self.prev_goal], 1,
+                    name="Zt_r")
+            else:
+                self.f_Mspace = tf.identity(self.f_percept, name="Zt_r")
+
             self.f_Mspace = tf.contrib.layers.fully_connected(self.f_Mspace, FLAGS.hidden_dim)
 
             self.f_percept = tf.concat(
