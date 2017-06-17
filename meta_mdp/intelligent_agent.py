@@ -77,8 +77,8 @@ class IntelligentAgent():
 
                 # self.env.render()
 
-                if episode_step_count >= 99:
-                     d = True
+                # if episode_step_count >= 99:
+                #      d = True
 
             self.episode_rewards.append(episode_reward)
             print("Episode reward is {}".format(episode_reward))

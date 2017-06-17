@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from utils import set_image_bandit, make_gif
 import random
 FLAGS = tf.app.flags.FLAGS
 
@@ -28,6 +29,7 @@ class RandomAgent():
             episode_suboptimal_arm = 0
             episode_reward = [0 for _ in range(FLAGS.nb_actions)]
             episode_step_count = 0
+            episode_frames = []
             d = False
             r = 0
             a = 0
@@ -37,6 +39,8 @@ class RandomAgent():
             while not d:
                 a = random.randint(0, FLAGS.nb_actions - 1)
                 r, d, t = self.env.pull_arm(a)
+
+                episode_frames.append(set_image_bandit(episode_reward, self.env.get_bandit(), a, t))
 
                 episode_regret += self.env.get_timestep_regret(a)
                 optimal_action = self.env.get_optimal_arm()
@@ -51,6 +55,10 @@ class RandomAgent():
 
             self.episodes_suboptimal_arms.append(episode_suboptimal_arm)
             self.episode_regrets.append(episode_regret)
+
+            self.images = np.array(episode_frames)
+            make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(test_episode_count) + '.gif',
+                     duration=len(self.images) * 0.1, true_image=True)
 
             if test_episode_count == FLAGS.nb_test_episodes - 1:
                 mean_regret = np.mean(self.episode_regrets)

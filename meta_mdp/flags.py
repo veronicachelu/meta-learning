@@ -1,12 +1,12 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-v1',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "NonMatching", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
 tf.app.flags.DEFINE_integer('game_channels', 3, """Nb of channels for each frame - rgb = 3""")
-tf.app.flags.DEFINE_boolean('resume', True,
+tf.app.flags.DEFINE_boolean('resume', False,
                             """Resume training from latest checkpoint""")
 tf.app.flags.DEFINE_boolean('train', True,
                             """Whether to train or test""")
@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_string('test_experiments_dir', './test_experiments',
                            """Directory where to write event test experiments""")
 tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
-tf.app.flags.DEFINE_boolean('monitor', False,
+tf.app.flags.DEFINE_boolean('monitor', True,
                             """Monitor test with gym monitor""")
 tf.app.flags.DEFINE_boolean('meta', True,
                             """Whether to use meta learning framwork or not""")

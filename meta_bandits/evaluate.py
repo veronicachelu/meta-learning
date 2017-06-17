@@ -107,9 +107,9 @@ def evaluate_one_test():
     with open(FLAGS.results_eval_file, "r") as f:
         line = f.readline()
     mean_regrets = line.rstrip('\n').split(' ')
-    mean_regrets = [float(rg) for rg in mean_regrets]
-    mean_rg_avg = np.mean(mean_regrets)
-    print("Avg regret for the model is {}".format(mean_rg_avg))
+    # mean_regrets = [float(rg) for rg in mean_regrets]
+    # mean_rg_avg = np.mean(mean_regrets)
+    # print("Avg regret for the model is {}".format(mean_rg_avg))
 
 
 def run(settings):

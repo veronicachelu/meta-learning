@@ -140,7 +140,7 @@ class Agent():
 
                     pi, v, rnn_state_new = sess.run(
                         [self.local_AC.policy, self.local_AC.value, self.local_AC.state_out], feed_dict=feed_dict)
-                    a = np.random.choice(pi[0], p=pi[0])
+                    a = np.random.choice(pi[0])
                     a = np.argmax(pi == a)
 
                     rnn_state = rnn_state_new
@@ -218,10 +218,10 @@ class Agent():
                         print("Regret in terms of suboptimal arms is {}".format(mean_nb_suboptimal_arms))
                     return 1
 
-                # if not FLAGS.train:
-                #     self.images = np.array(episode_frames)
-                #     make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
-                #              duration=len(self.images) * 0.1, true_image=True)
+                if not FLAGS.train:
+                    self.images = np.array(episode_frames)
+                    make_gif(self.images, FLAGS.frames_test_dir + '/image' + str(episode_count) + '.gif',
+                             duration=len(self.images) * 0.1, true_image=True)
 
                 if FLAGS.train == True and episode_count % FLAGS.checkpoint_interval == 0 and episode_count != 0:
                     saver.save(sess, self.model_path + '/model-' + str(episode_count) + '.cptk',
