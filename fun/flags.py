@@ -23,7 +23,7 @@ tf.app.flags.DEFINE_string('test_experiments_dir', './test_experiments',
                            """Directory where to write event test experiments""")
 tf.app.flags.DEFINE_string('frames_dir', './frames',
                            """Directory where to write event gifs""")
-tf.app.flags.DEFINE_boolean('monitor', False,
+tf.app.flags.DEFINE_boolean('monitor', True,
                             """Monitor test with gym monitor""")
 tf.app.flags.DEFINE_integer('summary_interval', 1000, """Number of episodes of interval between summary saves""")
 tf.app.flags.DEFINE_integer('checkpoint_interval', 1000, """Number of episodes of interval between checkpoint saves""")

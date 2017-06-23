@@ -38,7 +38,10 @@ class PolicyMonitor(object):
             # Copy params to local model
             episode_count = sess.run(self.global_episode)
             sess.run(self.update_local_ops)
+            sess.run([(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "policy_eval/prob_of_random_goal")[0].assign(
+                tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, "global/prob_of_random_goal")[0]))])
             sess.run(self.local_AC.decrease_prob_of_random_goal)
+
 
             # Run an episode
             s, _, _, _ = self.env.reset()
@@ -141,9 +144,10 @@ class PolicyMonitor(object):
                 episode_length += 1
                 t += 1
                 s = s1
+                print(t)
 
-                if t >= FLAGS.BTT_length:
-                    d = True
+                # if t >= FLAGS.BTT_length:
+                #     d = True
 
             if summaries:
                 # # Add summaries
