@@ -21,6 +21,11 @@ from eval import PolicyMonitor
 #     FLAGS.gamma = np.random.uniform(0.8, 1.0)
 
 def run():
+    if not tf.gfile.Exists(os.path.join(FLAGS.frames_dir, FLAGS.model_name)):
+        tf.gfile.DeleteRecursively(os.path.join(FLAGS.frames_dir, FLAGS.model_name))
+        tf.gfile.MakeDirs(os.path.join(FLAGS.frames_dir, FLAGS.model_name))
+
+
     tf.reset_default_graph()
 
     sess = tf.Session()

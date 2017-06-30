@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 # Basic model parameters.
-tf.app.flags.DEFINE_string('game', 'Gridworld-v0',
+tf.app.flags.DEFINE_string('game', 'Gridworld-v1',
                            """Bandit experiment type to be run""")
 tf.app.flags.DEFINE_string('model_name', "FUN", """Name of the model""")
 tf.app.flags.DEFINE_integer('game_size', 5, """Dimension of the gridworld""")
@@ -40,7 +40,7 @@ tf.app.flags.DEFINE_float('m_beta_v', 0.25, """Coefficient of value function los
 tf.app.flags.DEFINE_float('beta_e', 1e-4, """Coefficient of entropy loss""")
 tf.app.flags.DEFINE_integer('max_nb_episodes_train', 900000, """Max number of episodes of training time""")
 tf.app.flags.DEFINE_float('gradient_clip_value', 50.0, """gradient_clip_value""")
-tf.app.flags.DEFINE_integer('nb_test_episodes', 150, """Test episodes""")
+tf.app.flags.DEFINE_integer('nb_test_episodes', 1, """Test episodes""")
 tf.app.flags.DEFINE_integer('BTT_length', 100, 'BTT length')
 tf.app.flags.DEFINE_integer('hidden_dim', 48, 'the size of all the hidden layers')
 tf.app.flags.DEFINE_integer('manager_horizon', 2, """manager_horizon = r = c""")

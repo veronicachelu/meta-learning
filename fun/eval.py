@@ -2,6 +2,8 @@ import sys
 import os
 import itertools
 import collections
+import scipy.ndimage
+import scipy.misc
 import numpy as np
 import tensorflow as tf
 import time
@@ -10,6 +12,7 @@ from network import FUNNetwork
 from utils import update_target_graph
 import gym
 import flags
+from PIL import Image
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -29,7 +32,7 @@ class PolicyMonitor(object):
     def eval_nb_test_episodes(self, sess):
         rewards = []
         for i in range(FLAGS.nb_test_episodes):
-            episode_reward, _ = self.eval_once(sess, False)
+            episode_reward, _ = self.eval_once(sess, True)
             rewards.append(episode_reward)
         print("Mean reward over {} episodes : {}".format(FLAGS.nb_test_episodes, np.mean(rewards)))
 
@@ -66,7 +69,8 @@ class PolicyMonitor(object):
             episode_goals = []
             episode_sum_of_prev_goals = []
             episode_manager_states = []
-
+            episode_goals_statistics = []
+            episode_maximums = []
 
             while not d:
                 feed_dict_m = {
@@ -83,6 +87,29 @@ class PolicyMonitor(object):
 
                 episode_goals.append(goals[0])
                 episode_manager_states.append(m_s[0])
+                episode_maximums.append([None, None, None])
+
+                def cosine(s_t_1, s_t, g_t):
+                    state_dif = s_t_1 - s_t
+                    state_dif_norm = np.linalg.norm(state_dif)
+                    if state_dif_norm != 0:
+                        state_dif_normalized = state_dif / state_dif_norm
+                    else:
+                        state_dif_normalized = state_dif
+                    goal_norm = np.linalg.norm(g_t)
+                    if goal_norm != 0:
+                        goal_normalized = g_t / goal_norm
+                    else:
+                        goal_normalized = g_t
+                    return np.dot(state_dif_normalized, goal_normalized)
+
+                def compute_past_states_goal_maximized(m_s, s):
+                    for i, past_goal in enumerate(episode_goals):
+                        cos_ms = cosine(m_s, episode_manager_states[i], past_goal)
+                        if episode_maximums[i][0] is None or cos_ms > episode_maximums[i][0]:
+                            episode_maximums[i] = [cos_ms, m_s, s]
+
+                compute_past_states_goal_maximized(m_s, s)
 
                 def prev_goals_gather_horiz():
                     t = len(episode_goals)
@@ -92,23 +119,14 @@ class PolicyMonitor(object):
 
                     return s
 
+
+
                 def intr_reward_gather_horiz():
                     t = len(episode_manager_states)
                     s = 0
                     if t - 1 > 0:
                         for i in range(max(t - FLAGS.manager_horizon, 0), t - 1):
-                            state_dif = episode_manager_states[t - 1] - episode_manager_states[i]
-                            state_dif_norm = np.linalg.norm(state_dif)
-                            if state_dif_norm != 0:
-                                state_dif_normalized = state_dif / state_dif_norm
-                            else:
-                                state_dif_normalized = state_dif
-                            goal_norm = np.linalg.norm(episode_goals[i])
-                            if goal_norm != 0:
-                                goal_normalized = episode_goals[i] / goal_norm
-                            else:
-                                goal_normalized = episode_goals[i]
-                            s += np.dot(state_dif_normalized, goal_normalized)
+                            s += cosine(episode_manager_states[t - 1], episode_manager_states[i], episode_goals[i])
                         s /= len(range(max(t - FLAGS.manager_horizon, 0), t - 1))
                     return s
 
@@ -118,6 +136,7 @@ class PolicyMonitor(object):
                 sum_of_prev_goals = prev_goals_gather_horiz()
                 prev_goal = sum_of_prev_goals
                 episode_sum_of_prev_goals.append(sum_of_prev_goals)
+
 
                 feed_dict_w = {
                     self.local_AC.inputs: [s],
@@ -160,6 +179,25 @@ class PolicyMonitor(object):
                 tf.logging.info(
                     "Eval results at step {}: total_reward {}, episode_length {}".format(episode_count, total_reward,
                                                                                          episode_length))
+                states_maxs = []
+                for i, (max_cos, ms, s) in enumerate(episode_maximums):
+                    found = None
+                    for j, t in enumerate(states_maxs):
+                        if (s == t[0]).all():
+                            found = j
+                            break
+                    if found is not None:
+                        states_maxs[found] = [s, states_maxs[found][1] + 1, i]
+                    else:
+                        states_maxs.append([s, 0, i])
+
+                for [s, max_frames, timestep] in states_maxs:
+                    s_big = scipy.misc.imresize(s, [200, 200, 3], interp='nearest')
+                    im = Image.fromarray(s_big.astype(np.uint8), 'RGB')
+                    im.save(os.path.join(os.path.join(FLAGS.frames_dir, FLAGS.model_name),
+                                         "timestep_{}_max_cos_{}.jpeg".format(timestep, max_frames)))
+
+
 
             return total_reward, episode_length
 
