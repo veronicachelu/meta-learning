@@ -1,4 +1,4 @@
-# Meta-Reinforcement Learning with feudal networks for hierarchical reinforcement learning
+# Feudal networks for hierarchical reinforcement learning
 
 ## System requirements
 
@@ -60,9 +60,10 @@ the number of past states that maximize it.
 ## Results
 
 * Results for the NonMatching environment are show bellow:
-![Alt text](./results/training_reward.jpg?raw=true "Training reward")
-![Alt text](./results/training_length.jpg?raw=true "Training episode length")
-![Alt text](./results/game.gif?raw=true "Trained agent")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/training_reward.png?raw=true "Training reward")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/training_length.png?raw=true "Training episode length")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/game.gif?raw=true "Trained agent")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/max_goals%20(1).png?raw=true "Max goals states")
 
 ## Acknowledgements
 
