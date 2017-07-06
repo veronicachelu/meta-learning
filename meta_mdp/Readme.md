@@ -64,8 +64,12 @@
 
 ## Results
 
-* Results are shown in this table, including with the best values for learning rates and gamma values:
-        TODO
+* Results are shown bellow for the meta learning Gridworld
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/game_gridworld10x10.gif?raw=true "10x10 Gridworld")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/game_gridworld10x10_v2.gif?raw=true "10x10 Gridworld")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/10x10gridworld_v2.png?raw=true "10x10 Gridworld Results")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/5x5gridworld.png?raw=true "5x5 Gridworld results")
+
 
 ## Acknowledgements
 - ```Learning to reinforcement learn - Jane X Wang, Zeb Kurth-Nelson, Dhruva Tirumala, Hubert Soyer, Joel Z Leibo, Remi Munos, Charles Blundell, Dharshan Kumaran, Matt Botvinick```
