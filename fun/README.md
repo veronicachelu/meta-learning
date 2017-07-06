@@ -63,6 +63,7 @@ the number of past states that maximize it.
 ![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/training_reward.png?raw=true "Training reward")
 ![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/training_length.png?raw=true "Training episode length")
 ![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/game.gif?raw=true "Trained agent")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/fun/results/max_goals%20(1).png?raw=true "Max goals states")
 
 ## Acknowledgements
 
