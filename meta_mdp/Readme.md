@@ -67,7 +67,7 @@
 * Results are shown bellow for the meta learning Gridworld
 ![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/game_gridworld10x10.gif?raw=true "10x10 Gridworld")
 ![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/game_gridworld10x10_v2.gif?raw=true "10x10 Gridworld")
-![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/10x10gridworld_v2.png?raw=true "10x10 Gridworld Results")
+![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/10x10gridworld.png?raw=true "10x10 Gridworld Results")
 ![Alt text](https://github.com/ioanachelu/meta-learning/blob/master/meta_mdp/results/5x5gridworld.png?raw=true "5x5 Gridworld results")
 
 
