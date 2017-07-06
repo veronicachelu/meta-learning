@@ -1,4 +1,4 @@
-# Meta-Reinforcement Learning with feudal networks for hierarchical reinforcement learning
+# Feudal networks for hierarchical reinforcement learning
 
 ## System requirements
 
