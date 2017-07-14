@@ -6,7 +6,7 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
 from utils import normalized_columns_initializer
 from math import sqrt
-
+import flags
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -15,12 +15,18 @@ class FUNNetwork():
         with tf.variable_scope(scope):
             self.prob_of_random_goal = tf.Variable(FLAGS.initial_random_goal_prob, trainable=False,
                                                    name="prob_of_random_goal", dtype=tf.float32)
-            self.inputs = tf.placeholder(shape=[None, FLAGS.game_size, FLAGS.game_size, FLAGS.game_channels],
+            self.inputs = tf.placeholder(shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length],
                                          dtype=tf.float32, name="Inputs")
 
-            self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Rewards")
-            self.prev_rewards_onehot = tf.one_hot(self.prev_rewards, 2, dtype=tf.float32,
+            self.prev_rewards = tf.placeholder(shape=[None], dtype=tf.float32, name="Prev_Rewards")
+
+            self.prev_rewards_onehot = tf.one_hot(tf.cast(self.prev_rewards, dtype=tf.int32), 2, dtype=tf.float32,
                                                   name="Prev_Rewards_OneHot")
+
+            self.prev_rewards = tf.expand_dims(self.prev_rewards, 1, name="rewards")
+
+            # self.prev_rewards_onehot = tf.expand_dims(self.prev_rewards, 0)
+
             self.prev_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="Prev_Actions")
             self.prev_actions_onehot = tf.one_hot(self.prev_actions, FLAGS.nb_actions, dtype=tf.float32,
                                                   name="Prev_Actions_OneHot")
@@ -28,7 +34,19 @@ class FUNNetwork():
             self.prev_goal = tf.placeholder(shape=[None, FLAGS.hidden_dim], dtype=tf.float32, name="Prev_Goals")
 
             self.image_summaries = []
-            if FLAGS.game_size > 5:
+
+            if FLAGS.game not in flags.SUPPORTED_ENVS:
+                self.conv0 = tf.contrib.layers.conv2d(
+                    self.inputs, 16, 8, 4, activation_fn=tf.nn.elu, scope="conv0")
+                with tf.variable_scope('conv0'):
+                    tf.get_variable_scope().reuse_variables()
+                    weights = tf.get_variable('weights')
+                    grid = self.put_kernels_on_grid(weights)
+                    self.image_summaries.append(
+                        tf.summary.image('kernels', grid, max_outputs=1))
+                self.conv = tf.contrib.layers.conv2d(
+                    self.conv0, 32, 4, 2, activation_fn=tf.nn.elu, scope="conv1")
+            else:
                 self.conv = tf.contrib.layers.conv2d(
                     self.inputs, 32, 5, 2, activation_fn=tf.nn.elu, scope="conv1")
                 with tf.variable_scope('conv1'):
@@ -37,8 +55,6 @@ class FUNNetwork():
                     grid = self.put_kernels_on_grid(weights)
                     self.image_summaries.append(
                         tf.summary.image('kernels', grid, max_outputs=1))
-            else:
-                self.conv = self.inputs
 
             with tf.variable_scope('inputs'):
                 tf.get_variable_scope().reuse_variables()
@@ -50,9 +66,14 @@ class FUNNetwork():
             self.fc = tf.contrib.layers.layer_norm(self.fc)
             self.f_percept = tf.nn.elu(self.fc, name="Zt")
 
-            self.f_percept = tf.concat(
-                [self.f_percept, self.prev_rewards_onehot], 1,
-                name="Zt_r")
+            if FLAGS.game not in flags.SUPPORTED_ENVS:
+                self.f_percept = tf.concat(
+                    [self.f_percept, self.prev_rewards], 1,
+                    name="Zt_r")
+            else:
+                self.f_percept = tf.concat(
+                    [self.f_percept, self.prev_rewards_onehot], 1,
+                    name="Zt_r")
 
             summary_f_percept_act = tf.contrib.layers.summarize_activation(self.f_percept)
 

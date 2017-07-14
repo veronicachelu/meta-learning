@@ -10,7 +10,9 @@ from agent import Agent
 from network import FUNNetwork
 import flags
 import multiprocessing
+import atari_environment
 import os
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -36,6 +38,7 @@ def recreate_directory_structure():
             tf.gfile.DeleteRecursively(os.path.join(FLAGS.summaries_dir, FLAGS.model_name))
             tf.gfile.MakeDirs(os.path.join(FLAGS.summaries_dir, FLAGS.model_name))
 
+
 # def sample_params():
 #     FLAGS.lr = 10 ** np.random.uniform(np.log10(10**(-2)), np.log10((10**(-4))))
 #     FLAGS.gamma = np.random.uniform(0.8, 1.0)
@@ -51,7 +54,7 @@ def run():
         with tf.device("/cpu:0"):
             global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
             optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
-            global_network = FUNNetwork('global', None)
+
 
             # num_agents = multiprocessing.cpu_count()
             num_agents = FLAGS.nb_concurrent
@@ -62,7 +65,15 @@ def run():
                 gym_env = gym.make(FLAGS.game)
                 # if FLAGS.monitor:
                 #     gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i), force=True)
+                if FLAGS.game not in flags.SUPPORTED_ENVS:
+                    gym_env = atari_environment.AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
+                                                                 resized_height=FLAGS.resized_height,
+                                                                 agent_history_length=FLAGS.agent_history_length)
+                    FLAGS.nb_actions = len(gym_env.gym_actions)
+
                 envs.append(gym_env)
+
+            global_network = FUNNetwork('global', None)
 
             for i in range(num_agents):
                 agents.append(Agent(envs[i], i, optimizer, global_step))

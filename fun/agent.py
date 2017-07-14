@@ -3,7 +3,10 @@ import tensorflow as tf
 from network import FUNNetwork
 from utils import update_target_graph, discount, set_image_bandit, set_image_bandit_11_arms, make_gif
 import os
+import flags
+import copy
 import scipy
+
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -20,7 +23,8 @@ class Agent():
         self.episode_lengths = []
         self.episode_mean_w_values = []
         self.episode_mean_m_values = []
-        self.summary_writer = tf.summary.FileWriter(os.path.join(FLAGS.summaries_dir, FLAGS.model_name) + "/agent_" + str(self.thread_id))
+        self.summary_writer = tf.summary.FileWriter(
+            os.path.join(FLAGS.summaries_dir, FLAGS.model_name) + "/agent_" + str(self.thread_id))
         self.summary = tf.Summary()
 
         self.local_AC = FUNNetwork(self.name, optimizer, self.global_episode)
@@ -28,7 +32,7 @@ class Agent():
         self.update_local_vars = update_target_graph('global', self.name)
         self.env = game
 
-    def train(self, rollout, sess, bootstrap_value, summaries=False):
+    def train(self, rollout, sess, bootstrap_value_w, bootstrap_value_m, summaries=False):
         rollout = np.array(rollout)
         observations = rollout[:, 0]
         actions = rollout[:, 1]
@@ -43,13 +47,14 @@ class Agent():
         # if FLAGS.meta:
         prev_rewards = [0] + rewards[:-1].tolist()
         prev_actions = [0] + actions[:-1].tolist()
-        prev_goals = [np.random.normal(size=(FLAGS.hidden_dim, ))] + goals[:-1].tolist()
+        prev_goals = [np.random.normal(size=(FLAGS.hidden_dim,))] + goals[:-1].tolist()
 
         # The advantage function uses "Generalized Advantage Estimation"
-        rewards_plus = np.asarray(rewards.tolist() + [bootstrap_value])
-        intr_rewards_plus = np.asarray(intr_rewards.tolist() + [bootstrap_value])
-        w_discounted_rewards = discount(rewards_plus, FLAGS.w_gamma)[:-1]
-        m_discounted_rewards = discount(rewards_plus, FLAGS.m_gamma)[:-1]
+        rewards_plus_w = np.asarray(rewards.tolist() + [bootstrap_value_w])
+        rewards_plus_m = np.asarray(rewards.tolist() + [bootstrap_value_m])
+        intr_rewards_plus = np.asarray(intr_rewards.tolist() + [bootstrap_value_w])
+        w_discounted_rewards = discount(rewards_plus_w, FLAGS.w_gamma)[:-1]
+        m_discounted_rewards = discount(rewards_plus_m, FLAGS.m_gamma)[:-1]
         w_discounted_intr_rewards = discount(intr_rewards_plus, FLAGS.w_gamma)[:-1]
         # w_value_plus = np.asarray(w_values.tolist() + [bootstrap_value])
         # m_value_plus = np.asarray(m_values.tolist() + [bootstrap_value])
@@ -72,23 +77,25 @@ class Agent():
                      }
 
         if summaries:
-            l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ, cos_sim_state_diff = sess.run([self.local_AC.loss,
-                                                                    self.local_AC.w_value_loss,
-                                                                    self.local_AC.m_value_loss,
-                                                                    self.local_AC.w_policy_loss,
-                                                                    self.local_AC.goals_loss,
-                                                                    self.local_AC.entropy,
-                                                                    self.local_AC.grad_norms,
-                                                                    self.local_AC.var_norms,
-                                                                    self.local_AC.apply_grads,
-                                                                    self.local_AC.merged_summary,
-                                                                    self.local_AC.image_summaries,
-                                                                    self.local_AC.cos_sim_state_diff,
-                                                                    ],
-                                                                   feed_dict=feed_dict)
+            l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, _, ms, img_summ, cos_sim_state_diff = sess.run(
+                [self.local_AC.loss,
+                 self.local_AC.w_value_loss,
+                 self.local_AC.m_value_loss,
+                 self.local_AC.w_policy_loss,
+                 self.local_AC.goals_loss,
+                 self.local_AC.entropy,
+                 self.local_AC.grad_norms,
+                 self.local_AC.var_norms,
+                 self.local_AC.apply_grads,
+                 self.local_AC.merged_summary,
+                 self.local_AC.image_summaries,
+                 self.local_AC.cos_sim_state_diff,
+                 ],
+                feed_dict=feed_dict)
             return l / len(rollout), w_v_l / len(rollout), m_v_l / len(rollout), \
-                   p_l / len(rollout), g_l / len(rollout),\
-                   e_l / len(rollout), g_n, v_n, ms, img_summ, m_discounted_rewards, w_discounted_rewards, w_discounted_intr_rewards, cos_sim_state_diff
+                   p_l / len(rollout), g_l / len(rollout), \
+                   e_l / len(
+                       rollout), g_n, v_n, ms, img_summ, m_discounted_rewards, w_discounted_rewards, w_discounted_intr_rewards, cos_sim_state_diff
         else:
             _ = sess.run([self.local_AC.apply_grads], feed_dict=feed_dict)
             return None
@@ -124,9 +131,12 @@ class Agent():
                 t = 0
                 r = 0
                 a = 0
-                prev_goal = np.random.normal(size=(FLAGS.hidden_dim, ))
+                prev_goal = np.random.normal(size=(FLAGS.hidden_dim,))
 
-                s, _, _, _ = self.env.reset()
+                if FLAGS.game not in flags.SUPPORTED_ENVS:
+                    s = self.env.get_initial_state()
+                else:
+                    s, _, _, _ = self.env.reset()
                 m_rnn_state = self.local_AC.m_state_init
                 w_rnn_state = self.local_AC.w_state_init
 
@@ -141,7 +151,8 @@ class Agent():
                     }
 
                     m_v, m_rnn_state_new, goals, m_s = sess.run(
-                        [self.local_AC.m_value, self.local_AC.m_state_out, self.local_AC.randomized_goals, self.local_AC.f_Mspace], feed_dict=feed_dict_m)
+                        [self.local_AC.m_value, self.local_AC.m_state_out, self.local_AC.randomized_goals,
+                         self.local_AC.f_Mspace], feed_dict=feed_dict_m)
                     # prev_goal = goals[0]
                     episode_goals.append(goals[0])
                     episode_manager_states.append(m_s[0])
@@ -193,7 +204,8 @@ class Agent():
                     }
 
                     pi, w_v, w_rnn_state_new = sess.run(
-                        [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.w_state_out], feed_dict=feed_dict_w)
+                        [self.local_AC.w_policy, self.local_AC.w_value, self.local_AC.w_state_out],
+                        feed_dict=feed_dict_w)
                     a = np.random.choice(pi[0], p=pi[0])
                     a = np.argmax(pi == a)
 
@@ -201,8 +213,11 @@ class Agent():
                     m_rnn_state = m_rnn_state_new
 
                     s1, r, d, _ = self.env.step(a)
+                    if FLAGS.game not in flags.SUPPORTED_ENVS:
+                        r = np.clip(r, -1, 1)
 
-                    episode_buffer.append([s, a, r, t, d, w_v[0, 0], m_v[0, 0], sum_of_prev_goals, intr_reward, prev_goal])
+                    episode_buffer.append(
+                        [s, a, r, t, d, w_v[0, 0], m_v[0, 0], sum_of_prev_goals, intr_reward, prev_goal])
                     episode_goals.append(goals[0])
                     episode_w_values.append(w_v[0, 0])
                     episode_m_values.append(m_v[0, 0])
@@ -214,8 +229,55 @@ class Agent():
                     s = s1
 
                     # print(t)
-                    if t >= FLAGS.BTT_length:
+                    if t >= FLAGS.BTT_length and FLAGS.game in flags.SUPPORTED_ENVS:
                         d = True
+                    elif t >= FLAGS.BTT_length and not d:
+                        feed_dict_m = {
+                            self.local_AC.inputs: [s],
+                            self.local_AC.prev_rewards: [r],
+                            self.local_AC.prev_goal: [prev_goal],
+                            self.local_AC.m_state_in[0]: m_rnn_state[0],
+                            self.local_AC.m_state_in[1]: m_rnn_state[1]
+                        }
+
+                        m_v, goals, m_s = sess.run(
+                            [self.local_AC.m_value, self.local_AC.randomized_goals,
+                             self.local_AC.f_Mspace], feed_dict=feed_dict_m)
+                        episode_goals_copy = copy.deepcopy(episode_goals)
+                        episode_goals_copy.append(goals[0])
+                        episode_manager_states_copy = copy.deepcopy(episode_manager_states)
+                        episode_manager_states_copy.append(m_s[0])
+
+                        intr_reward = intr_reward_gather_horiz()
+                        episode_intr_reward_copy = copy.deepcopy(episode_intr_reward)
+                        episode_intr_reward_copy.append(intr_reward)
+
+                        sum_of_prev_goals = prev_goals_gather_horiz()
+
+                        feed_dict = {
+                            self.local_AC.inputs: [s],
+                            self.local_AC.prev_rewards: [r],
+                            self.local_AC.prev_actions: [a],
+                            self.local_AC.sum_prev_goals: [sum_of_prev_goals],
+                            self.local_AC.w_state_in[0]: w_rnn_state[0],
+                            self.local_AC.w_state_in[1]: w_rnn_state[1],
+                            self.local_AC.m_state_in[0]: m_rnn_state[0],
+                            self.local_AC.m_state_in[1]: m_rnn_state[1]
+                        }
+
+                        w_v = sess.run(self.local_AC.w_value,
+                                           feed_dict=feed_dict)
+                        m_v, w_v = m_v[0, 0], w_v[0, 0]
+
+                        if len(episode_buffer) != 0 and FLAGS.train == True:
+                            if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
+                                l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum, m_return, w_return, w_i_return, cos_sim_state_diff = self.train(
+                                    episode_buffer, sess, m_v, w_v, summaries=True)
+                            else:
+                                self.train(episode_buffer, sess, m_v, w_v)
+
+                    elif d:
+                        break
 
                 self.episode_rewards.append(episode_reward)
                 self.episode_lengths.append(episode_step_count)
@@ -224,7 +286,8 @@ class Agent():
 
                 if len(episode_buffer) != 0 and FLAGS.train == True:
                     if episode_count % FLAGS.summary_interval == 0 and episode_count != 0:
-                        l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum, m_return, w_return, w_i_return, cos_sim_state_diff = self.train(episode_buffer, sess, 0.0, summaries=True)
+                        l, w_v_l, m_v_l, p_l, g_l, e_l, g_n, v_n, ms, img_sum, m_return, w_return, w_i_return, cos_sim_state_diff = self.train(
+                            episode_buffer, sess, 0.0, 0.0, summaries=True)
                     else:
                         self.train(episode_buffer, sess, 0.0)
 
@@ -250,16 +313,17 @@ class Agent():
                     self.summary.value.add(tag='Perf/W_Value', simple_value=float(mean_w_value))
                     self.summary.value.add(tag='Perf/M_Value', simple_value=float(mean_m_value))
 
-
                     if FLAGS.train:
                         mean_m_return = np.mean(m_return)
                         self.summary.value.add(tag='Returns/Mean M_Return', simple_value=float(mean_m_return))
                         mean_w_return = np.mean(w_return)
                         self.summary.value.add(tag='Returns/Mean W_Return', simple_value=float(mean_w_return))
                         mean_intrinsic_return = np.mean(w_i_return)
-                        self.summary.value.add(tag='Returns/Mean Intrinsic_Return', simple_value=float(mean_intrinsic_return))
+                        self.summary.value.add(tag='Returns/Mean Intrinsic_Return',
+                                               simple_value=float(mean_intrinsic_return))
                         mean_cos_sim_state_diff = np.mean(cos_sim_state_diff)
-                        self.summary.value.add(tag='Statistics/Mean Cos Sim', simple_value=float(mean_cos_sim_state_diff))
+                        self.summary.value.add(tag='Statistics/Mean Cos Sim',
+                                               simple_value=float(mean_cos_sim_state_diff))
                         self.summary.value.add(tag='Losses/Total Loss', simple_value=float(l))
                         self.summary.value.add(tag='Losses/W_Value Loss', simple_value=float(w_v_l))
                         self.summary.value.add(tag='Losses/M_Value Loss', simple_value=float(m_v_l))
