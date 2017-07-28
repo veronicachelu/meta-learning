@@ -46,40 +46,24 @@ def run():
     tf.reset_default_graph()
 
     sess = tf.Session()
-    # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
-    # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
     with sess:
         global_step = tf.Variable(0, dtype=tf.int32, name='global_episodes', trainable=False)
 
         gym_env = gym.make(FLAGS.game)
-        if FLAGS.seed:
+        if FLAGS.seed and FLAGS.seed != -1:
             gym_env.seed(FLAGS.seed)
 
-        #if FLAGS.monitor:
-        #    gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir + '/worker_{}'.format(i))
+        if FLAGS.monitor:
+           gym_env = gym.wrappers.Monitor(gym_env, FLAGS.experiments_dir)
+
         env = AtariEnvironment(gym_env=gym_env, resized_width=FLAGS.resized_width,
                                     resized_height=FLAGS.resized_height,
                                     agent_history_length=FLAGS.agent_history_length)
-
         nb_actions = len(env.gym_actions)
 
         agent = Agent(env, sess, nb_actions, global_step)
-        saver = tf.train.Saver(max_to_keep=5)
+        saver = tf.train.Saver(max_to_keep=1000)
 
-        # gym_env_monitor = gym.make(FLAGS.game)
-        # gym_env_monitor.seed(FLAGS.seed)
-        # gym_env_monitor_wrapper = AtariEnvironment(gym_env=gym_env_monitor, resized_width=FLAGS.resized_width,
-        #                                            resized_height=FLAGS.resized_height,
-        #                                            agent_history_length=FLAGS.agent_history_length)
-        # nb_actions = len(gym_env_monitor_wrapper.gym_actions)
-        # pe = PolicyMonitor(
-        #     game=gym_env_monitor_wrapper,
-        #     nb_actions=nb_actions,
-        #     optimizer=optimizer,
-        #     global_step=global_step
-        # )
-
-    # coord = tf.train.Coordinator()
     if FLAGS.resume:
         ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
         print("Loading Model from {}".format(ckpt.model_checkpoint_path))
@@ -88,19 +72,6 @@ def run():
         sess.run(tf.global_variables_initializer())
 
     agent.play(saver)
-
-    # # Start a thread for policy eval task
-    # monitor_thread = threading.Thread(target=lambda: pe.continuous_eval(FLAGS.eval_every, sess, coord))
-    # monitor_thread.start()
-    # import time
-    # while True:
-    #     if FLAGS.show_training:
-    #         for env in envs:
-    #             # time.sleep(1)
-    #             # with main_lock:
-    #             env.env.render()
-    #
-    # coord.join(worker_threads)
 
 
 if __name__ == '__main__':

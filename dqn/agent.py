@@ -15,7 +15,7 @@ main_lock = Lock()
 
 class Agent():
     def __init__(self, game, sess, nb_actions, global_step):
-        self.name = "agent"
+        self.name = "DQN_agent"
         self.model_path = FLAGS.checkpoint_dir
         self.global_episode = global_step
         self.increment_global_episode = self.global_episode.assign_add(1)

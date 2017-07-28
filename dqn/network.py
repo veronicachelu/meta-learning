@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import random_ops
+import tensorflow.contrib.layers as layers
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -15,75 +16,32 @@ class DQNetwork:
             self.inputs = tf.placeholder(
                 shape=[None, FLAGS.resized_height, FLAGS.resized_width, FLAGS.agent_history_length], dtype=tf.float32,
                 name="Input")
+            out = self.inputs
+            self.nb_actions = nb_actions
+            with tf.variable_scope("convnet"):
+                out = layers.conv2d(out, num_outputs=32, kernel_size=5, stride=2, activation_fn=tf.nn.relu,
+                                      variables_collections=tf.get_collection("variables"),
+                                      outputs_collections="activations")
 
-            fan_in = 4 * FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size
-            fan_out = FLAGS.conv1_kernel_size * FLAGS.conv1_kernel_size * FLAGS.conv1_nb_kernels
-            w_bound = np.sqrt(6. / (fan_in + fan_out))
+                out = layers.conv2d(out, num_outputs=32, kernel_size=5, stride=2, activation_fn=tf.nn.relu,
+                                      padding="VALID",
+                                      variables_collections=tf.get_collection("variables"),
+                                      outputs_collections="activations")
+            conv_out = layers.flatten(out)
 
-            conv1 = tf.contrib.layers.conv2d(
-                self.inputs, FLAGS.conv1_nb_kernels, FLAGS.conv1_kernel_size, FLAGS.conv1_stride,
-                activation_fn=tf.nn.elu, padding=FLAGS.conv1_padding,
-                weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
-                biases_initializer=tf.constant_initializer(0.0),
-                variables_collections=tf.get_collection("variables"),
-                outputs_collections="activations",
-                scope="conv1")
-
-            fan_in = FLAGS.conv1_nb_kernels * FLAGS.conv2_kernel_size * FLAGS.conv2_kernel_size
-            fan_out = FLAGS.conv2_kernel_size * FLAGS.conv2_kernel_size * FLAGS.conv2_nb_kernels
-            w_bound = np.sqrt(6. / (fan_in + fan_out))
-
-            conv2 = tf.contrib.layers.conv2d(
-                conv1, FLAGS.conv2_nb_kernels, FLAGS.conv2_kernel_size, FLAGS.conv2_stride, padding=FLAGS.conv2_padding,
-                weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
-                biases_initializer=tf.constant_initializer(0.0),
-                variables_collections=tf.get_collection("variables"),
-                outputs_collections="activations",
-                activation_fn=tf.nn.elu, scope="conv2")
-
-            conv2_flatten = tf.contrib.layers.flatten(conv2)
-            fan_in = conv2_flatten.get_shape().as_list()[1]
-            fan_out = FLAGS.fc_size
-            w_bound = np.sqrt(6. / (fan_in + fan_out))
-
-            hidden = tf.contrib.layers.fully_connected(
-                inputs=conv2_flatten,
-                num_outputs=FLAGS.fc_size,
-                activation_fn=tf.nn.elu,
-                weights_initializer=tf.random_uniform_initializer(-w_bound, w_bound),
-                biases_initializer=tf.constant_initializer(0.0),
-                variables_collections=tf.get_collection("variables"),
-                outputs_collections="activations",
-                scope="fc1")
-
-            # summary_conv1_act = tf.contrib.layers.summarize_activation(conv1)
-            self.image_summaries = []
-            with tf.variable_scope('conv1'):
-                tf.get_variable_scope().reuse_variables()
-                weights = tf.get_variable('weights')
-                grid = self.put_kernels_on_grid(weights)
-                for i in range(FLAGS.agent_history_length):
-                    self.image_summaries.append(
-                        tf.summary.image('conv1/features/{}'.format(i), tf.expand_dims(grid[:, :, :, i], axis=3),
-                                         max_outputs=1))
-                for i in range(FLAGS.conv1_nb_kernels):
-                    self.image_summaries.append(
-                        tf.summary.image('conv1/activation/{}'.format(i), tf.expand_dims(conv1[:, :, :, i], axis=3),
-                                         max_outputs=1))
-            # summary_conv2_act = tf.contrib.layers.summarize_activation(conv2)
-            #
-            # summary_linear_act = tf.contrib.layers.summarize_activation(hidden)
-
-            self.action_values = tf.contrib.layers.fully_connected(
-                inputs=hidden,
-                num_outputs=nb_actions,
-                weights_initializer=self.normalized_columns_initializer(1.0),
-                biases_initializer=None,
-                variables_collections=tf.get_collection("variables"),
-                outputs_collections="activations",
-                activation_fn=None, scope="value")
-
-            # summary_action_value_act = tf.contrib.layers.summarize_activation(self.action_values)
+            with tf.variable_scope("action_value"):
+                value_out = layers.fully_connected(conv_out, num_outputs=FLAGS.hidden_size,
+                                                   activation_fn=None,
+                                                   variables_collections=tf.get_collection("variables"),
+                                                   outputs_collections="activations")
+                if FLAGS.layer_norm:
+                    value_out = self.layer_norm_fn(value_out, relu=True)
+                else:
+                    value_out = tf.nn.relu(value_out)
+                self.action_values = value_out = layers.fully_connected(value_out, num_outputs=nb_actions,
+                                                   activation_fn=None,
+                                                   variables_collections=tf.get_collection("variables"),
+                                                   outputs_collections="activations")
 
             if scope != 'target':
 
@@ -95,11 +53,14 @@ class DQNetwork:
                                                   reduction_indices=1, name="Q")
 
                 # Loss functions
-                self.action_value_loss = tf.reduce_sum(self.clipped_l2(self.target_q, self.action_value),
-                                                       name="DQN_loss")
+                td_error = self.action_value - self.target_q
+                self.action_value_loss = self.huber_loss(td_error)
+                # self.action_value_loss = tf.reduce_sum(self.clipped_l2(),
+                #                                        name="DQN_loss")
 
-                self.train_operation, grads = self.graves_rmsprop_optimizer(self.action_value_loss, FLAGS.lr, 0.95,
-                                                                            0.01, 1)
+                # self.train_operation, grads = self.graves_rmsprop_optimizer(self.action_value_loss, FLAGS.lr, 0.95,
+                #                                                             0.01, 1)
+                gradients, train_op = self.minimize_and_clip(self.action_value_loss, tf.trainable_variables(), FLAGS.gradient_norm_clipping)
                 # grads = tf.gradients(self.action_value_loss, tf.trainable_variables())
                 # grads = list(zip(grads, tf.trainable_variables()))
 
@@ -107,15 +68,22 @@ class DQNetwork:
 
                 # self.summaries = [summary_conv1_act, summary_conv2_act, summary_linear_act, summary_action_value_act]
                 self.summaries = []
-                self.summaries.append(tf.contrib.layers.summarize_collection("variables"))#tf.get_collection("variables")))
+                self.summaries.append(
+                    tf.contrib.layers.summarize_collection("variables"))  # tf.get_collection("variables")))
                 self.summaries.append(tf.contrib.layers.summarize_collection("activations",
                                                                              summarizer=tf.contrib.layers.summarize_activation))
 
-                for grad, weight in grads:
+                for grad, weight in gradients:
                     self.summaries.append(tf.summary.histogram(weight.name + '_grad', grad))
                     # self.summaries.append(tf.summary.histogram(weight.name, weight))
 
                 self.merged_summary = tf.summary.merge(self.summaries)
+
+    def layer_norm_fn(self, x, relu=True):
+        x = layers.layer_norm(x, scale=True, center=True)
+        if relu:
+            x = tf.nn.relu(x)
+        return x
 
     def put_kernels_on_grid(self, kernel, pad=1):
 
@@ -186,6 +154,23 @@ class DQNetwork:
                                      batch_delta_abs - batch_delta_quadratic) * grad_clip
             batch = batch_delta_linear + batch_delta_quadratic ** 2 / 2
         return batch
+
+    def huber_loss(self, x, delta=1.0):
+        """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
+        return tf.where(
+            tf.abs(x) < delta,
+            tf.square(x) * 0.5,
+            delta * (tf.abs(x) - 0.5 * delta)
+        )
+
+    def minimize_and_clip(self, objective, var_list, clip_val):
+        if FLAGS.optimizer == "Adam":
+            optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.lr)
+        gradients = optimizer.compute_gradients(objective, var_list=var_list)
+        for i, (grad, var) in enumerate(gradients):
+            if grad is not None:
+                gradients[i] = (tf.clip_by_norm(grad, clip_val), var)
+        return gradients, optimizer.apply_gradients(gradients)
 
     def graves_rmsprop_optimizer(self, loss, learning_rate, rmsprop_decay, rmsprop_constant, gradient_clip):
         with tf.name_scope('rmsprop'):
